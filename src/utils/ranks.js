@@ -1,5 +1,5 @@
 const TIERS = [
-  { key: 'Monarch', min: 100000, color: '#9d00ff', maxUsers: 9, requiresTitle: true },
+  { key: 'Monarch', min: 100000, color: '#9d00ff', maxUsers: 9, requiresTitle: true, requiresLevel: 100 },
   { key: 'National Ranker', min: 70000, color: '#ffd166' },
   { key: 'S', min: 30000, color: '#f94144' },
   { key: 'A', min: 15000, color: '#f3722c' },
@@ -13,15 +13,28 @@ const TIERS = [
  * Get the tier object for a given user (with xp and optional hasMonarchTitle).
  * Returns { key, min, color, nextMin, requiresTitle, maxUsers }
  */
-export function getTier(xp = 0, hasMonarchTitle = false) {
+export function getTier(xp = 0, hasMonarchTitle = false, level = null) {
   for (let i = 0; i < TIERS.length; i++) {
     const t = TIERS[i];
-    // Check if user meets XP requirement
-    if (xp >= t.min) {
-      // For Monarch tier, also check if user has the title
-      if (t.key === 'Monarch' && !hasMonarchTitle) {
-        continue; // Skip Monarch tier if no title
+    // Monarch requires level 100 and title
+    if (t.key === 'Monarch') {
+      if (level === 100 && hasMonarchTitle) {
+        const next = TIERS[i - 1];
+        return {
+          key: t.key,
+          min: t.min,
+          color: t.color,
+          nextMin: next ? next.min : null,
+          requiresTitle: t.requiresTitle || false,
+          maxUsers: t.maxUsers || null,
+          requiresLevel: t.requiresLevel || null
+        };
+      } else {
+        continue;
       }
+    }
+    // Other tiers by XP
+    if (xp >= t.min) {
       const next = TIERS[i - 1];
       return {
         key: t.key,
@@ -29,7 +42,8 @@ export function getTier(xp = 0, hasMonarchTitle = false) {
         color: t.color,
         nextMin: next ? next.min : null,
         requiresTitle: t.requiresTitle || false,
-        maxUsers: t.maxUsers || null
+        maxUsers: t.maxUsers || null,
+        requiresLevel: t.requiresLevel || null
       };
     }
   }
@@ -41,8 +55,20 @@ export function getTier(xp = 0, hasMonarchTitle = false) {
     color: last.color, 
     nextMin: null,
     requiresTitle: false,
-    maxUsers: null
+    maxUsers: null,
+    requiresLevel: null
   };
+}
+
+// New: Get rank by level only
+export function getRankByLevel(level) {
+  if (level >= 100) return 'Monarch';
+  if (level >= 71)  return 'S';
+  if (level >= 51)  return 'A';
+  if (level >= 36)  return 'B';
+  if (level >= 21)  return 'C';
+  if (level >= 11)  return 'D';
+  return 'E';
 }
 
 /**
@@ -62,5 +88,6 @@ export default {
   TIERS,
   getTier,
   tierProgress,
-  TIERS_ORDER
+  TIERS_ORDER,
+  getRankByLevel
 };
