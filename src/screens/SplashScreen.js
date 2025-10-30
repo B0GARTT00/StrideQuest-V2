@@ -74,25 +74,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a0f2e'
   },
   // glow removed to keep a uniform background color
-  center: { 
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  center: { alignItems: 'center' },
   logo: {
-    width: 180,
-    height: 180,
-    marginBottom: 24,
-    borderRadius: 90, // Makes it circular (half of width/height)
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+    borderRadius: 75, // Makes it circular (half of width/height)
     overflow: 'hidden', // Crops to circle shape
-    alignSelf: 'center', // Ensures horizontal centering
   },
   title: {
     color: '#fff',
     fontSize: 64,
-    fontWeight: '900',
     letterSpacing: 6,
     textTransform: 'uppercase',
-    fontFamily: 'SoloLevel'
+    fontFamily: 'SoloLevel', // Eternal.ttf font
   },
   subtitle: {
     color: theme.colors.gold,
