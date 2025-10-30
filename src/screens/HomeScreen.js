@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { View, Modal, TouchableOpacity, ScrollView, Text, StyleSheet, Animated } from 'react-native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
@@ -6,6 +6,7 @@ import StatusCard from '../components/StatusCard';
 import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
+import GuildService from '../services/GuildService';
 
 const mockActivities = [
   { id: 'a1', type: 'Run', distanceKm: 5.2, time: '28:14', xp: 120 },
@@ -40,6 +41,9 @@ export default function HomeScreen({ navigation }) {
   const { state, getCurrentUserProfile, loadUserData } = useContext(AppContext);
   const me = getCurrentUserProfile || (state.users && state.users[0]);
   const [open, setOpen] = useState(false);
+  const [myGuild, setMyGuild] = useState(null);
+  const [guildLoading, setGuildLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -74,6 +78,42 @@ export default function HomeScreen({ navigation }) {
     if (!state.users) return [];
     return [...state.users].sort((a, b) => b.xp - a.xp).slice(0, 3);
   }, [state.users]);
+
+  // Load My Guild summary for quick action and subscribe to unread count
+  useEffect(() => {
+    let unsubUnread = null;
+    let mounted = true;
+    const load = async () => {
+      if (!me?.guildId) {
+        setMyGuild(null);
+        setUnreadCount(0);
+        return;
+      }
+      try {
+        setGuildLoading(true);
+        const res = await GuildService.getGuild(me.guildId);
+        if (mounted) {
+          setMyGuild(res.success ? res.data : null);
+        }
+        // Subscribe to unread count in real-time
+        unsubUnread = GuildService.subscribeGuildUnread(me.guildId, me.id, (count) => {
+          if (mounted) setUnreadCount(count);
+        });
+      } catch (e) {
+        if (mounted) {
+          setMyGuild(null);
+          setUnreadCount(0);
+        }
+      } finally {
+        if (mounted) setGuildLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+      if (unsubUnread) unsubUnread();
+    };
+  }, [me?.guildId]);
 
   if (!me) {
     return (
@@ -155,15 +195,26 @@ export default function HomeScreen({ navigation }) {
 
           <TouchableOpacity 
             style={styles.quickActionCard} 
-            onPress={() => navigation.navigate('Quest')}
+            onPress={() => {
+              if (myGuild) navigation.navigate('GuildDetail', { guildId: myGuild.id });
+              else navigation.navigate('Guilds');
+            }}
             activeOpacity={0.8}
           >
             <View style={styles.actionIconWrap}>
-              <Text style={styles.actionIcon}>⚔️</Text>
+              <Text style={styles.actionIcon}>👥</Text>
+              {unreadCount > 0 && (
+                <View style={styles.unreadBadge}>
+                  <Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.actionTitle}>Quests</Text>
-            <Text style={styles.actionSubtitle}>View challenges</Text>
+            <Text style={styles.actionTitle}>{myGuild ? 'My Guild' : 'Find a Guild'}</Text>
+            <Text style={styles.actionSubtitle} numberOfLines={1}>
+              {guildLoading ? 'Loading…' : myGuild ? `${myGuild.emblem} ${myGuild.name}` : 'Create or join now'}
+            </Text>
           </TouchableOpacity>
+// ...existing code...
         </View>
 
         {/* Recent Activities */}
@@ -582,5 +633,23 @@ const styles = StyleSheet.create({
     color: theme.colors.muted,
     fontSize: 13,
     fontWeight: '700'
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#f44336',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    zIndex: 2,
+  },
+  unreadText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 12,
   }
 });

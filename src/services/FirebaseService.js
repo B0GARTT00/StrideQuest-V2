@@ -310,6 +310,9 @@ export const saveActivity = async (userId, activityData) => {
     // Update quest progress for activity-related quests
     await updateQuestsForActivity(userId, activityData);
     
+    // Note: Guild XP is calculated dynamically from all members' XP
+    // No need to update guild stats separately
+    
     return { 
       success: true, 
       id: activityRef.id, 

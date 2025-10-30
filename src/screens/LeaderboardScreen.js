@@ -17,6 +17,17 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const RANK_DUMMY_USERS = [
+  { rank: 'E', name: 'Han Song-Yi', minLevel: 1 },
+  { rank: 'D', name: 'Kim Sangshik', minLevel: 11 },
+  { rank: 'C', name: 'Song Chi-Yul', minLevel: 21 },
+  { rank: 'B', name: 'Kang Taeshik', minLevel: 36 },
+  { rank: 'A', name: 'Woo Jinchul', minLevel: 51 },
+  { rank: 'S', name: 'Go Gun-Hee', minLevel: 71 },
+  { rank: 'National Ranker', name: 'Thomas Andre', minLevel: 91 },
+  { rank: 'Monarch', name: 'Sung Jin-woo', minLevel: 100 }
+];
+
 // Animated Collapsible Tier Component
 const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor }) => {
   const [contentHeight, setContentHeight] = useState(0);
@@ -126,6 +137,32 @@ const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor }) => 
             }
           }}
         >
+          {/* Reference Dummy User */}
+          {(() => {
+            const dummyUser = RANK_DUMMY_USERS.find(d => 
+              d.rank === tierData.key || 
+              (d.rank === 'National Ranker' && tierData.key === 'National Ranker')
+            );
+            if (dummyUser) {
+              return (
+                <View style={[styles.tierUserRow, { backgroundColor: 'rgba(199, 125, 255, 0.05)', borderLeftWidth: 3, borderLeftColor: tierColor }]}>
+                  <View style={styles.tierUserRank}>
+                    <Text style={styles.tierUserRankText}>★</Text>
+                  </View>
+                  <View style={styles.tierUserInfo}>
+                    <Text style={[styles.tierUserName, { color: tierColor }]}>{dummyUser.name}</Text>
+                    <Text style={styles.tierUserXP}>Level {dummyUser.minLevel} Required</Text>
+                  </View>
+                  <View style={[styles.tierUserBadge, { borderColor: tierColor, backgroundColor: `${tierColor}22` }]}>
+                    <Text style={[styles.tierUserBadgeText, { color: tierColor }]}>REF</Text>
+                  </View>
+                </View>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Actual Users */}
           {tierData.users.map((user, idx) => {
             const globalRank = sorted.indexOf(user) + 1;
             return (
