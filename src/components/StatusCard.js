@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal } from 'react-native';
 import { theme } from '../theme/ThemeProvider';
 import * as FirebaseService from '../services/FirebaseService';
 
@@ -7,6 +7,7 @@ export default function StatusCard({ player = {}, compact = false, modal = false
   const [allocating, setAllocating] = useState(false);
   const [localStats, setLocalStats] = useState(null);
   const [localRemaining, setLocalRemaining] = useState(null);
+  const [showDistributeModal, setShowDistributeModal] = useState(false);
   
   const p = {
     name: player.name ?? 'SHIDO ITSUKA',
@@ -112,15 +113,6 @@ export default function StatusCard({ player = {}, compact = false, modal = false
           {Object.entries(p.stats).slice(0, 3).map(([k, v]) => (
             <View key={k} style={styles.statRow}>
               <Text style={styles.statLine}>{`${k.toUpperCase()}: ${v}`}</Text>
-              {p.remaining > 0 && p.userId && (
-                <TouchableOpacity 
-                  style={styles.plusButton} 
-                  onPress={() => handleAllocateStat(k)}
-                  disabled={allocating}
-                >
-                  <Text style={styles.plusText}>+</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ))}
         </View>
@@ -128,15 +120,6 @@ export default function StatusCard({ player = {}, compact = false, modal = false
           {Object.entries(p.stats).slice(3).map(([k, v]) => (
             <View key={k} style={styles.statRow}>
               <Text style={styles.statLine}>{`${k.toUpperCase()}: ${v}`}</Text>
-              {p.remaining > 0 && p.userId && (
-                <TouchableOpacity 
-                  style={styles.plusButton} 
-                  onPress={() => handleAllocateStat(k)}
-                  disabled={allocating}
-                >
-                  <Text style={styles.plusText}>+</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ))}
         </View>
@@ -151,11 +134,53 @@ export default function StatusCard({ player = {}, compact = false, modal = false
         <Text style={styles.remaining}>REMAINING POINTS: {p.remaining}</Text>
       </View>
 
+      {p.remaining > 0 && p.userId && (
+        <TouchableOpacity 
+          style={styles.distributeButton} 
+          onPress={() => setShowDistributeModal(true)}
+        >
+          <Text style={styles.distributeButtonText}>DISTRIBUTE POINTS</Text>
+        </TouchableOpacity>
+      )}
+
       {onClose ? (
         <TouchableOpacity style={styles.close} onPress={onClose}>
           <Text style={styles.closeText}>CLOSE</Text>
         </TouchableOpacity>
       ) : null}
+
+      {/* Distribute Points Modal */}
+      <Modal visible={showDistributeModal} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.distributeModal}>
+            <Text style={styles.distributeTitle}>DISTRIBUTE POINTS</Text>
+            <Text style={styles.distributeSubtitle}>Available: {p.remaining} points</Text>
+            
+            <View style={styles.distributeGrid}>
+              {Object.entries(p.stats).map(([k, v]) => (
+                <View key={k} style={styles.distributeRow}>
+                  <Text style={styles.distributeStat}>{k.toUpperCase()}</Text>
+                  <Text style={styles.distributeValue}>{v}</Text>
+                  <TouchableOpacity 
+                    style={styles.distributeButton2}
+                    onPress={() => handleAllocateStat(k)}
+                    disabled={allocating || p.remaining <= 0}
+                  >
+                    <Text style={styles.distributeButtonText2}>+1</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity 
+              style={styles.closeDistributeButton} 
+              onPress={() => setShowDistributeModal(false)}
+            >
+              <Text style={styles.closeDistributeText}>DONE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* decorative corners (use images if provided) */}
       {cornerImages.topLeft ? (
@@ -260,9 +285,9 @@ const styles = StyleSheet.create({
   },
   statLine: { color: '#fff', fontWeight: '700', flex: 1 },
   plusButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: theme.colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,11 +299,132 @@ const styles = StyleSheet.create({
   },
   plusText: {
     color: '#0a0612',
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '900',
   },
   remainingRow: { marginTop: 12, alignItems: 'center' },
   remaining: { color: '#fff', fontWeight: '800' },
+  distributeButton: {
+    marginTop: 16,
+    backgroundColor: '#c77dff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e0aaff',
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+  },
+  distributeButtonText: {
+    color: '#1a0f2e',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 33, 74, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  distributeModal: {
+    backgroundColor: '#1a0f2e',
+    borderColor: '#c77dff',
+    borderWidth: 3,
+    borderRadius: 8,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+  },
+  distributeTitle: {
+    color: '#e0aaff',
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 4,
+    fontFamily: 'SoloLevel',
+    letterSpacing: 4,
+    textShadowColor: '#c77dff',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  distributeSubtitle: {
+    color: '#e0aaff',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+    opacity: 0.8,
+  },
+  distributeGrid: {
+    marginBottom: 20,
+  },
+  distributeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(199, 125, 255, 0.3)',
+  },
+  distributeStat: {
+    color: '#e0aaff',
+    fontSize: 14,
+    fontWeight: '800',
+    flex: 1,
+    textTransform: 'uppercase',
+  },
+  distributeValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900',
+    marginRight: 12,
+  },
+  distributeButton2: {
+    backgroundColor: '#c77dff',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 6,
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+  },
+  distributeButtonText2: {
+    color: '#1a0f2e',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  closeDistributeButton: {
+    backgroundColor: '#e0aaff',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#c77dff',
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+  },
+  closeDistributeText: {
+    color: '#1a0f2e',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
   close: { marginTop: 12, alignSelf: 'center', borderWidth: 1, borderColor: '#fff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   closeText: { color: '#fff', fontWeight: '800' }
 });

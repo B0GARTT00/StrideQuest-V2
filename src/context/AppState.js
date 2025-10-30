@@ -82,11 +82,21 @@ export const AppStateProvider = ({ children }) => {
       
       // Check if quests exist, if not seed them
       const questsResult = await FirebaseService.getQuests();
-      const quests = questsResult.success ? questsResult.data : [];
+      let quests = questsResult.success ? questsResult.data : [];
       
       if (!quests || quests.length === 0) {
         console.log('Seeding initial quests to Firebase...');
         await FirebaseService.seedQuests();
+        // Reload quests after seeding
+        const newQuestsResult = await FirebaseService.getQuests();
+        quests = newQuestsResult.success ? newQuestsResult.data : [];
+      } else if (quests.length < 10) {
+        // If we have fewer than 10 quests, reseed to add new ones
+        console.log('Updating quests to include new ones...');
+        await FirebaseService.seedQuests();
+        // Reload quests after seeding
+        const newQuestsResult = await FirebaseService.getQuests();
+        quests = newQuestsResult.success ? newQuestsResult.data : [];
       }
       
       const userResult = await FirebaseService.getUser(userId);
