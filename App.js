@@ -52,19 +52,13 @@ function AppNavigator() {
 }
 
 export default function App() {
-  const [fontsLoaded, fontError] = useFonts({
-    'SoloLevel': require('./assets/Eternal.ttf'),
-    'Eternal': require('./assets/Eternal.ttf'), // Alternative name
+  const [fontsLoaded] = useFonts({
+    SoloLevel: require('./assets/Eternal.ttf'),
   });
 
-  // Log any font loading errors
-  if (fontError) {
-    console.error('Font loading error:', fontError);
-  }
-
   if (!fontsLoaded) {
-    // show existing splash screen while font loads
-    return <SplashScreen disableTap={true} />;
+    // Return null while font loads
+    return null;
   }
 
   return (

@@ -129,11 +129,62 @@ export default function GuildDetailScreen({ route, navigation }) {
           </View>
         </Card>
 
-        {/* Chat CTA */}
+        {/* Chat CTA + Actions */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.chatButton} onPress={() => navigation.navigate('GuildChat', { guildId })}>
             <Text style={styles.chatButtonText}>Open Guild Chat</Text>
           </TouchableOpacity>
+
+          {/* Guild Actions */}
+          {!isLeader ? (
+            <TouchableOpacity
+              style={[styles.dangerButton, { marginTop: 12 }]}
+              onPress={() => {
+                Alert.alert(
+                  'Leave Guild',
+                  'Are you sure you want to leave this guild?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Leave', style: 'destructive', onPress: async () => {
+                      const res = await GuildService.leaveGuild(guildId, getCurrentUserId);
+                      if (res.success) {
+                        Alert.alert('Left Guild', 'You have left the guild.');
+                        navigation.navigate('Guilds');
+                      } else {
+                        Alert.alert('Error', res.message || 'Failed to leave guild');
+                      }
+                    }}
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.dangerText}>Leave Guild</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.dangerButton, { marginTop: 12, borderColor: '#ff4d4f', backgroundColor: 'rgba(255,77,79,0.15)' }]}
+              onPress={() => {
+                Alert.alert(
+                  'Disband Guild',
+                  'This will remove all members and delete the guild. This action cannot be undone. Proceed?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Disband', style: 'destructive', onPress: async () => {
+                      const res = await GuildService.disbandGuild(guildId, getCurrentUserId);
+                      if (res.success) {
+                        Alert.alert('Guild Disbanded', 'The guild has been deleted.');
+                        navigation.navigate('Guilds');
+                      } else {
+                        Alert.alert('Error', res.message || 'Failed to disband guild');
+                      }
+                    }}
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.dangerText}>Disband Guild</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Members List */}
@@ -218,6 +269,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '900',
     fontSize: 16
+  },
+  dangerButton: {
+    borderWidth: 2,
+    borderColor: '#e0aaff',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: 'rgba(224,170,255,0.08)'
+  },
+  dangerText: {
+    color: '#e0aaff',
+    fontWeight: '900',
+    fontSize: 15
   },
   guildHeader: {
     flexDirection: 'row',

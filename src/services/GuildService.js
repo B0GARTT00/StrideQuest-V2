@@ -423,6 +423,57 @@ export const leaveGuild = async (guildId, userId) => {
 };
 
 /**
+ * Disband a guild (leader only)
+ * - Clears guildId and guildRole for all members
+ * - Deletes guild messages subcollection
+ * - Deletes the guild document
+ */
+export const disbandGuild = async (guildId, leaderId) => {
+  try {
+    const guildRef = doc(db, 'guilds', guildId);
+    const guildSnap = await getDoc(guildRef);
+    if (!guildSnap.exists()) {
+      return { success: false, message: 'Guild not found' };
+    }
+
+    const guild = guildSnap.data();
+    if (guild.leaderId !== leaderId) {
+      return { success: false, message: 'Only the leader can disband the guild' };
+    }
+
+    const memberIds = Array.isArray(guild.members) ? guild.members : [];
+
+    // Clear guild references for all members
+    for (const uid of memberIds) {
+      try {
+        const userRef = doc(db, 'users', uid);
+        await updateDoc(userRef, { guildId: null, guildRole: null });
+      } catch (e) {
+        console.warn('Failed to clear guild for user', uid, e?.message);
+      }
+    }
+
+    // Delete guild messages subcollection (best-effort)
+    try {
+      const msgsRef = collection(db, 'guilds', guildId, 'messages');
+      const msgsSnap = await getDocs(msgsRef);
+      const deletions = msgsSnap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletions);
+    } catch (e) {
+      console.warn('Failed to delete guild messages for', guildId, e?.message);
+    }
+
+    // Finally, delete the guild document
+    await deleteDoc(guildRef);
+
+    return { success: true, message: 'Guild disbanded successfully' };
+  } catch (error) {
+    console.error('Error disbanding guild:', error);
+    return { success: false, message: error.message, error };
+  }
+};
+
+/**
  * Promote member to officer
  */
 export const promoteToOfficer = async (guildId, userId, promoterId) => {
@@ -477,6 +528,7 @@ export default {
   getGuildMembers,
   joinGuild,
   leaveGuild,
+  disbandGuild,
   promoteToOfficer,
   subscribeToGuildMessages,
   sendGuildMessage,

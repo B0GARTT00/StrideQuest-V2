@@ -411,7 +411,6 @@ const styles = StyleSheet.create({
   brand: {
     color: theme.colors.text,
     fontSize: 32,
-    fontWeight: '900',
     fontFamily: 'SoloLevel',
     letterSpacing: 4,
     textShadowColor: 'rgba(235, 186, 242, 0.3)',
