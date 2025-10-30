@@ -12,7 +12,8 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { ref, set, get, onValue, update } from 'firebase/database';
-import { db, realtimeDb } from '../config/firebase';
+import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
+import { db, realtimeDb, storage } from '../config/firebase';
 
 /**
  * Firebase Service for Stride Quest
@@ -306,6 +307,9 @@ export const saveActivity = async (userId, activityData) => {
     // Award XP for the activity
     const xpResult = await addUserXP(userId, xpEarned);
     
+    // Update quest progress for activity-related quests
+    await updateQuestsForActivity(userId, activityData);
+    
     return { 
       success: true, 
       id: activityRef.id, 
@@ -367,6 +371,71 @@ const calculateActivityXP = (activity) => {
   const durationBonus = activity.durationMinutes ? Math.floor(activity.durationMinutes * 1) : 0;
   
   return typeXP + distanceBonus + durationBonus;
+};
+
+/**
+ * Update quest progress when an activity is completed
+ */
+const updateQuestsForActivity = async (userId, activityData) => {
+  try {
+    // Get all active quests
+    const questsResult = await getQuests();
+    if (!questsResult.success) return;
+    
+    const quests = questsResult.data;
+    
+    // Get user's current quest progress
+    const progressResult = await getUserQuestProgress(userId);
+    const userProgress = progressResult.success ? progressResult.data : [];
+    
+    // Get user's total activities count
+    const activitiesResult = await getUserActivities(userId, 1000);
+    const totalActivities = activitiesResult.success ? activitiesResult.data.length : 0;
+    
+    // Get user's total distance
+    const totalDistance = activitiesResult.success 
+      ? activitiesResult.data.reduce((sum, act) => sum + (act.distanceKm || 0), 0)
+      : 0;
+    
+    // Update progress for each quest
+    for (const quest of quests) {
+      if (!quest.active) continue;
+      
+      const existingProgress = userProgress.find(p => p.questId === quest.id);
+      const currentProgress = existingProgress?.progress || 0;
+      let newProgress = currentProgress;
+      let completed = existingProgress?.completed || false;
+      
+      // Check quest type and update progress
+      if (quest.requirement.type === 'activities') {
+        newProgress = totalActivities;
+        completed = newProgress >= quest.requirement.value;
+      } else if (quest.requirement.type === 'distance') {
+        newProgress = totalDistance;
+        completed = newProgress >= quest.requirement.value;
+      } else if (quest.requirement.type === 'xp') {
+        // Get user's total XP
+        const userResult = await getUser(userId);
+        if (userResult.success) {
+          newProgress = userResult.data.xp || 0;
+          completed = newProgress >= quest.requirement.value;
+        }
+      }
+      
+      // Update quest progress if changed
+      if (newProgress !== currentProgress || completed !== (existingProgress?.completed || false)) {
+        await updateQuestProgress(userId, quest.id, {
+          progress: newProgress,
+          completed: completed
+        });
+      }
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating quests for activity:', error);
+    return { success: false, error };
+  }
 };
 
 // ========== QUEST OPERATIONS ==========
@@ -551,6 +620,46 @@ export const seedQuests = async () => {
         type: 'achievement',
         requirement: { type: 'xp', value: 500 },
         reward: 100,
+        active: true
+      },
+      {
+        title: 'Marathoner',
+        description: 'Run a total of 42km',
+        type: 'achievement',
+        requirement: { type: 'distance', value: 42 },
+        reward: 300,
+        active: true
+      },
+      {
+        title: 'Sprinter',
+        description: 'Complete an activity with average speed above 12 km/h',
+        type: 'challenge',
+        requirement: { type: 'speed', value: 12 },
+        reward: 120,
+        active: true
+      },
+      {
+        title: 'Ultra Consistent',
+        description: 'Complete activities 30 days in a row',
+        type: 'monthly',
+        requirement: { type: 'streak', value: 30 },
+        reward: 500,
+        active: true
+      },
+      {
+        title: 'XP Collector',
+        description: 'Earn 5000 total XP',
+        type: 'achievement',
+        requirement: { type: 'xp', value: 5000 },
+        reward: 400,
+        active: true
+      },
+      {
+        title: 'Activity Enthusiast',
+        description: 'Complete 50 activities',
+        type: 'achievement',
+        requirement: { type: 'activities', value: 50 },
+        reward: 600,
         active: true
       }
     ];
@@ -811,6 +920,50 @@ export const equipMonarchTitle = async (userId, titleId) => {
   }
 };
 
+/**
+ * Upload profile picture to Firebase Storage and update user profile
+ */
+export const uploadProfilePicture = async (userId, imageUri) => {
+  try {
+    console.log('uploadProfilePicture - userId:', userId, 'imageUri:', imageUri);
+    
+    if (!userId || !imageUri) {
+      console.log('Missing userId or imageUri');
+      return { success: false, message: 'User ID and image URI are required' };
+    }
+
+    // Convert image to base64 data URL (will be stored in Firestore)
+    console.log('Converting image to base64...');
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    
+    const base64DataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result); // This includes "data:image/jpeg;base64,..."
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    
+    console.log('Base64 created, updating user document...');
+
+    // Store the base64 data URL directly in Firestore
+    // This way it's accessible to all users and persists across devices
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      profilePicture: base64DataUrl
+    });
+    console.log('User document updated successfully');
+
+    return { success: true, url: base64DataUrl };
+  } catch (error) {
+    console.error('Error uploading profile picture:', error);
+    console.error('Error details:', error.message, error.code);
+    return { success: false, message: error.message, error };
+  }
+};
+
 export default {
   saveUser,
   getUser,
@@ -835,5 +988,6 @@ export default {
   awardStatPoints,
   isMonarchTitleClaimed,
   getClaimedMonarchTitles,
-  equipMonarchTitle
+  equipMonarchTitle,
+  uploadProfilePicture
 };

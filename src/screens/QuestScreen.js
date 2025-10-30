@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, ScrollView, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { globalStyles } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import { AppContext } from '../context/AppState';
@@ -16,6 +17,13 @@ export default function QuestScreen({ navigation }) {
     loadQuests();
   }, []);
 
+  // Refresh quests when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      loadQuests();
+    }, [])
+  );
+
   const loadQuests = async () => {
     try {
       const userId = getCurrentUserId;
@@ -28,17 +36,18 @@ export default function QuestScreen({ navigation }) {
         console.log('Loaded quests:', questsResult.data.length);
         setQuests(questsResult.data);
         
-        // Load progress for each quest
+        // Load progress for all quests at once
         if (userId) {
-          const progressMap = {};
-          for (const quest of questsResult.data) {
-            const progressResult = await FirebaseService.getUserQuestProgress(userId, quest.id);
-            if (progressResult.success && progressResult.data) {
-              progressMap[quest.id] = progressResult.data;
-            }
+          const progressResult = await FirebaseService.getUserQuestProgress(userId);
+          if (progressResult.success && progressResult.data) {
+            // Convert array to map for easy lookup
+            const progressMap = {};
+            progressResult.data.forEach(progress => {
+              progressMap[progress.questId] = progress;
+            });
+            console.log('Progress map:', progressMap);
+            setUserProgress(progressMap);
           }
-          console.log('Progress map:', progressMap);
-          setUserProgress(progressMap);
         }
       }
     } catch (error) {

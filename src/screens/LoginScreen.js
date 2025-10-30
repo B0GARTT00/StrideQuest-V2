@@ -216,7 +216,7 @@ export default function LoginScreen({ navigation }) {
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.header}>
           <Text style={styles.brand}>Stride Quest</Text>
-          <Text style={styles.tag}>Ascend with every step</Text>
+          <Text style={styles.tag}>Arise with every step</Text>
           <View style={styles.divider} />
         </View>
 
@@ -355,12 +355,6 @@ export default function LoginScreen({ navigation }) {
               </>
             )}
           </TouchableOpacity>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
           {/* Guest access removed - users must log in or register */}
         </View>

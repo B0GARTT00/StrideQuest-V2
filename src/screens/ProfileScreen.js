@@ -1,5 +1,6 @@
 import React, { useContext, useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import Card from '../components/Card';
@@ -9,12 +10,21 @@ import { getTier } from '../utils/ranks';
 import FirebaseService from '../services/FirebaseService';
 
 export default function ProfileScreen({ navigation }) {
-  const { state, currentUser, logout, getCurrentUserProfile, getCurrentUserId } = useContext(AppContext);
+  const { state, currentUser, logout, getCurrentUserProfile, getCurrentUserId, loadUserData } = useContext(AppContext);
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(null);
   
   // Get current user's profile or use demo user
   const userProfile = getCurrentUserProfile || (state.users && state.users[0]);
+  
+  // Update local profile picture state when user profile changes
+  useEffect(() => {
+    if (userProfile?.profilePicture) {
+      setProfilePicture(userProfile.profilePicture);
+    }
+  }, [userProfile?.profilePicture]);
   
   console.log('ProfileScreen - userProfile:', userProfile);
   
@@ -124,6 +134,68 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const handleUploadProfilePicture = async () => {
+    try {
+      // Request permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to upload a profile picture.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setUploadingImage(true);
+        console.log('Starting upload...');
+        
+        try {
+          const imageUri = result.assets[0].uri;
+          console.log('Image URI:', imageUri);
+          
+          // Upload to Firebase
+          console.log('Uploading to Firebase...');
+          const uploadResult = await FirebaseService.uploadProfilePicture(getCurrentUserId, imageUri);
+          console.log('Upload result:', uploadResult);
+          
+          if (uploadResult.success) {
+            console.log('Upload successful, updating UI...');
+            // Update local state immediately for instant UI feedback
+            setProfilePicture(uploadResult.url);
+            
+            // Refresh user profile to get new picture
+            if (loadUserData) {
+              loadUserData(getCurrentUserId).catch(err => 
+                console.error('Error reloading user data:', err)
+              );
+            }
+            Alert.alert('Success', 'Profile picture updated successfully!');
+          } else {
+            console.log('Upload failed:', uploadResult.message);
+            Alert.alert('Error', uploadResult.message || 'Failed to upload profile picture.');
+          }
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('Error', 'Failed to upload profile picture.');
+        } finally {
+          console.log('Setting uploadingImage to false');
+          setUploadingImage(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleUploadProfilePicture:', error);
+      Alert.alert('Error', 'An error occurred while uploading the image.');
+      setUploadingImage(false);
+    }
+  };
+
   return (
     <View style={globalStyles.container}>
       <Header title="Profile" />
@@ -134,10 +206,39 @@ export default function ProfileScreen({ navigation }) {
           <View style={[styles.profileGlow, { backgroundColor: tier.color, opacity: 0.1 }]} />
           
           <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              <BadgeIcon label={tier.key[0]} color={tier.color} size={80} />
+            <TouchableOpacity 
+              style={styles.avatarContainer}
+              onPress={handleUploadProfilePicture}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? (
+                <View style={styles.avatarWrapper}>
+                  <View style={styles.profileImageContainer}>
+                    <ActivityIndicator size="large" color="#c77dff" />
+                  </View>
+                </View>
+              ) : (profilePicture || userProfile.profilePicture) ? (
+                <View style={styles.avatarWrapper}>
+                  <Image 
+                    source={{ uri: profilePicture || userProfile.profilePicture }} 
+                    style={styles.profileImage}
+                  />
+                  <View style={styles.editOverlay}>
+                    <Text style={styles.editIcon}>📷</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.avatarWrapper}>
+                  <View style={styles.profileImageContainer}>
+                    <View style={styles.uploadPrompt}>
+                      <Text style={styles.uploadIcon}>📷</Text>
+                      <Text style={styles.uploadText}>Add Photo</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
               {tier.key === 'Monarch' && <Text style={styles.monarchCrown}>👑</Text>}
-            </View>
+            </TouchableOpacity>
             
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{userProfile.name}</Text>
@@ -323,6 +424,74 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: 'relative'
+  },
+  avatarWrapper: {
+    position: 'relative',
+    width: 90,
+    height: 90
+  },
+  profileImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#c77dff',
+    backgroundColor: '#1a0f2e'
+  },
+  profileImageContainer: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#c77dff',
+    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden'
+  },
+  editOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#c77dff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#0f0d12'
+  },
+  editIcon: {
+    fontSize: 14
+  },
+  uploadPrompt: {
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  uploadIcon: {
+    fontSize: 32,
+    marginBottom: 4
+  },
+  uploadText: {
+    fontSize: 10,
+    color: '#e0aaff',
+    fontWeight: '600'
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  uploadHint: {
+    fontSize: 8,
+    color: '#e0aaff',
+    marginTop: 2,
+    textAlign: 'center'
   },
   monarchCrown: {
     position: 'absolute',
