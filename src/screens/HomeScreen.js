@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo, useEffect } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { View, Modal, TouchableOpacity, ScrollView, Text, StyleSheet, Animated } from 'react-native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
@@ -7,13 +7,11 @@ import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
 
-// Helper to format duration from minutes to mm:ss
-function formatDuration(minutes) {
-  if (!minutes || isNaN(minutes)) return '0:00';
-  const mins = Math.floor(minutes);
-  const secs = Math.round((minutes - mins) * 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
+const mockActivities = [
+  { id: 'a1', type: 'Run', distanceKm: 5.2, time: '28:14', xp: 120 },
+  { id: 'a2', type: 'Walk', distanceKm: 2.4, time: '24:02', xp: 80 },
+  { id: 'a3', type: 'Cycle', distanceKm: 12.1, time: '42:10', xp: 200 }
+];
 
 // Helper function to get title display name
 const getTitleName = (titleId) => {
@@ -42,22 +40,6 @@ export default function HomeScreen({ navigation }) {
   const { state, getCurrentUserProfile, loadUserData } = useContext(AppContext);
   const me = getCurrentUserProfile || (state.users && state.users[0]);
   const [open, setOpen] = useState(false);
-  const [activities, setActivities] = useState([]);
-  const [loadingActivities, setLoadingActivities] = useState(true);
-
-  useEffect(() => {
-    const fetchActivities = async () => {
-      if (me?.id) {
-        setLoadingActivities(true);
-        const result = await FirebaseService.getUserActivities(me.id, 5);
-        if (result.success && result.data) {
-          setActivities(result.data);
-        }
-        setLoadingActivities(false);
-      }
-    };
-    fetchActivities();
-  }, [me]);
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -106,7 +88,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={globalStyles.container}>
-      <Header title="" showTitle={false} rightLabel="" onPressRight={() => navigation.navigate('Profile')} />
+      <Header title="" showTitle={false} rightLabel="Profile" onPressRight={() => navigation.navigate('Profile')} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Hero Status Card */}
@@ -147,14 +129,9 @@ export default function HomeScreen({ navigation }) {
                   <View style={[styles.progressGlow, { width: `${expPercent * 100}%`, backgroundColor: tier.color }]} />
                 </View>
                 <Text style={styles.expSubtext}>
-                  {level >= 100
+                  {level >= 100 
                     ? `${me.xp.toLocaleString()} Total XP`
-                    : (() => {
-                        const xpForCurrentLevel = FirebaseService.calculateTotalXPForLevel(level);
-                        const xpForNextLevel = FirebaseService.calculateXPForNextLevel(level);
-                        const xpIntoLevel = (me.xp || 0) - xpForCurrentLevel;
-                        return `${xpIntoLevel} / ${xpForNextLevel} XP to next level`;
-                      })()
+                    : `${Math.floor((me.xp || 0) - FirebaseService.calculateTotalXPForLevel(level))} / ${FirebaseService.calculateXPForNextLevel(level)} XP`
                   }
                 </Text>
               </View>
@@ -199,30 +176,24 @@ export default function HomeScreen({ navigation }) {
           </View>
           
           <View style={styles.activitiesList}>
-            {loadingActivities ? (
-              <Text style={{ color: theme.colors.muted, textAlign: 'center', marginVertical: 12 }}>Loading activities...</Text>
-            ) : activities.length === 0 ? (
-              <Text style={{ color: theme.colors.muted, textAlign: 'center', marginVertical: 12 }}>No recent activities found.</Text>
-            ) : (
-              activities.map((a, idx) => (
-                <View key={a.id} style={styles.activityCard}>
-                  <View style={styles.activityLeft}>
-                    <View style={styles.activityIconCircle}>
-                      <Text style={styles.activityEmoji}>
-                        {a.type === 'run' ? '🏃' : a.type === 'walk' ? '🚶' : a.type === 'cycle' || a.type === 'bike' ? '🚴' : '🏋️'}
-                      </Text>
-                    </View>
-                    <View style={styles.activityInfo}>
-                      <Text style={styles.activityType}>{a.type.charAt(0).toUpperCase() + a.type.slice(1)}</Text>
-                      <Text style={styles.activityMeta}>{a.distanceKm?.toFixed(2)} km • {formatDuration(a.durationMinutes)}</Text>
-                    </View>
+            {mockActivities.map((a, idx) => (
+              <View key={a.id} style={styles.activityCard}>
+                <View style={styles.activityLeft}>
+                  <View style={styles.activityIconCircle}>
+                    <Text style={styles.activityEmoji}>
+                      {a.type === 'Run' ? '🏃' : a.type === 'Walk' ? '🚶' : '🚴'}
+                    </Text>
                   </View>
-                  <View style={styles.activityRight}>
-                    <Text style={styles.activityXP}>+{a.xpEarned} XP</Text>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityType}>{a.type}</Text>
+                    <Text style={styles.activityMeta}>{a.distanceKm} km • {a.time}</Text>
                   </View>
                 </View>
-              ))
-            )}
+                <View style={styles.activityRight}>
+                  <Text style={styles.activityXP}>+{a.xp} XP</Text>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -298,7 +269,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginHorizontal: 12,
     backgroundColor: '#0f0d12',
-    borderRadius: 20,
+    borderRadius: 15,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
@@ -376,24 +347,20 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 16,
-    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 2,
-    borderColor: '#c77dff',
+    borderColor: theme.colors.gold,
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#c77dff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6
+    justifyContent: 'center'
   },
   levelLabel: {
-    color: '#e0aaff',
+    color: theme.colors.muted,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1
   },
   levelNumber: {
-    color: '#e0aaff',
+    color: theme.colors.gold,
     fontSize: 24,
     fontWeight: '900',
     marginTop: 2
@@ -467,13 +434,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8
   },
   primaryAction: {
-    borderColor: '#c77dff',
-    borderWidth: 2,
-    backgroundColor: 'rgba(199, 125, 255, 0.08)',
-    shadowColor: '#c77dff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8
+    borderColor: theme.colors.accent,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(235, 186, 242, 0.05)'
   },
   actionIconWrap: {
     width: 48,

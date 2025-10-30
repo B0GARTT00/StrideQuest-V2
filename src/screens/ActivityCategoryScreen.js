@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
+import ActivityIcon from '../components/ActivityIcon';
 import { AppContext } from '../context/AppState';
 import FirebaseService from '../services/FirebaseService';
 
@@ -183,7 +184,7 @@ export default function ActivityCategoryScreen({ route, navigation }) {
               
               <View style={styles.activityHeader}>
                 <View style={[styles.activityIconCircle, { backgroundColor: `${item.color}20` }]}>
-                  <Text style={styles.activityEmoji}>{item.emoji}</Text>
+                  <ActivityIcon type={item.type} color={item.color} size={32} />
                 </View>
                 
                 <View style={styles.activityInfo}>
