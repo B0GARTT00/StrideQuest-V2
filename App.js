@@ -9,6 +9,7 @@ import AppStateProvider, { AppContext } from './src/context/AppState';
 import TabNavigator from './src/navigation/TabNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 import MapActivityScreen from './src/screens/MapActivityScreen';
+import TimerActivityScreen from './src/screens/TimerActivityScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import LoadingScreen from './src/components/LoadingScreen';
 import GuildDetailScreen from './src/screens/GuildDetailScreen';
@@ -33,6 +34,7 @@ function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="MapActivity" component={MapActivityScreen} />
+        <Stack.Screen name="TimerActivity" component={TimerActivityScreen} />
     <Stack.Screen name="Guilds" component={GuildsScreen} />
         <Stack.Screen name="GuildDetail" component={GuildDetailScreen} />
   <Stack.Screen name="GuildChat" component={GuildChatScreen} />

@@ -5,15 +5,17 @@ import Header from '../components/Header';
 import ActivityIcon from '../components/ActivityIcon';
 import { AppContext } from '../context/AppState';
 import FirebaseService from '../services/FirebaseService';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const indoor = [
   { 
-    id: 'i1', 
+    id: 'i1',     
     title: 'Yoga', 
     subtitle: 'Flexibility & mindfulness', 
     type: 'yoga',
     xp: 25,
-    emoji: '🧘',
+    icon: 'yoga',
+    iconType: 'MaterialCommunityIcons',
     color: '#c892ff',
     difficulty: 'Beginner'
   },
@@ -23,7 +25,8 @@ const indoor = [
     subtitle: 'Indoor running workout', 
     type: 'treadmill',
     xp: 45,
-    emoji: '🏃',
+    icon: 'run',
+    iconType: 'MaterialCommunityIcons',
     color: '#ff6b6b',
     difficulty: 'Intermediate'
   },
@@ -33,7 +36,8 @@ const indoor = [
     subtitle: 'High intensity training', 
     type: 'hiit',
     xp: 50,
-    emoji: '🔥',
+    icon: 'lightning-bolt-outline',
+    iconType: 'MaterialCommunityIcons',
     color: '#ffb86b',
     difficulty: 'Advanced'
   }
@@ -46,7 +50,8 @@ const outdoor = [
     subtitle: 'Outdoor running', 
     type: 'run',
     xp: 60,
-    emoji: '🏃',
+    icon: 'run',
+    iconType: 'MaterialCommunityIcons',
     color: '#ff6b6b',
     difficulty: 'Intermediate'
   },
@@ -56,7 +61,8 @@ const outdoor = [
     subtitle: 'Casual walking', 
     type: 'walk',
     xp: 20,
-    emoji: '🚶',
+    icon: 'walk',
+    iconType: 'MaterialCommunityIcons',
     color: '#8ad28a',
     difficulty: 'Beginner'
   },
@@ -66,7 +72,8 @@ const outdoor = [
     subtitle: 'Cycling workout', 
     type: 'cycle',
     xp: 80,
-    emoji: '🚴',
+    icon: 'bike',
+    iconType: 'MaterialCommunityIcons',
     color: '#6bd3ff',
     difficulty: 'Advanced'
   },
@@ -76,7 +83,8 @@ const outdoor = [
     subtitle: 'Trail hiking', 
     type: 'hike',
     xp: 70,
-    emoji: '⛰️',
+    icon: 'hiking',
+    iconType: 'MaterialCommunityIcons',
     color: '#f39c12',
     difficulty: 'Advanced'
   }
@@ -88,11 +96,14 @@ export default function ActivityCategoryScreen({ route, navigation }) {
 
   const list = category === 'Indoor' ? indoor : outdoor;
   const categoryColor = category === 'Indoor' ? '#9b59b6' : '#4a90e2';
-  const categoryEmoji = category === 'Indoor' ? '🏋️' : '🌳';
+  const categoryIcon = category === 'Indoor' ? 'home-outline' : 'tree-outline';
 
   const handleSelect = async (item) => {
     if (item.type === 'run') {
       navigation.navigate('MapActivity', { preset: item });
+    } else if (item.type === 'yoga') {
+      // Navigate to timer screen for yoga
+      navigation.navigate('TimerActivity', { preset: item });
     } else {
       // Save activity to Firebase
       const userId = getCurrentUserId;
@@ -160,7 +171,7 @@ export default function ActivityCategoryScreen({ route, navigation }) {
           <View style={[styles.headerGlow, { backgroundColor: categoryColor, opacity: 0.08 }]} />
           <View style={styles.headerContent}>
             <View style={[styles.headerIconCircle, { backgroundColor: `${categoryColor}15` }]}>
-              <Text style={styles.headerEmoji}>{categoryEmoji}</Text>
+              <MaterialCommunityIcons name={categoryIcon} size={28} color={categoryColor} />
             </View>
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>{category} Activities</Text>
@@ -184,7 +195,11 @@ export default function ActivityCategoryScreen({ route, navigation }) {
               
               <View style={styles.activityHeader}>
                 <View style={[styles.activityIconCircle, { backgroundColor: `${item.color}20` }]}>
-                  <ActivityIcon type={item.type} color={item.color} size={32} />
+                  {item.iconType === 'MaterialCommunityIcons' ? (
+                    <MaterialCommunityIcons name={item.icon} size={32} color={item.color} />
+                  ) : (
+                    <ActivityIcon type={item.type} color={item.color} size={32} />
+                  )}
                 </View>
                 
                 <View style={styles.activityInfo}>

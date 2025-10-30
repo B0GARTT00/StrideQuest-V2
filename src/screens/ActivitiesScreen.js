@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function ActivitiesScreen({ navigation }) {
   const categories = [
@@ -9,7 +10,7 @@ export default function ActivitiesScreen({ navigation }) {
       id: 'indoor',
       title: 'Indoor Activities',
       subtitle: 'Yoga, Treadmill, HIIT',
-      emoji: '🏋️',
+      icon: 'home-outline',
       color: '#9b59b6',
       activities: '3 activities'
     },
@@ -17,7 +18,7 @@ export default function ActivitiesScreen({ navigation }) {
       id: 'outdoor',
       title: 'Outdoor Activities',
       subtitle: 'Run, Walk, Bike, Hike',
-      emoji: '🌳',
+      icon: 'tree-outline',
       color: '#4a90e2',
       activities: '4 activities'
     }
@@ -49,7 +50,7 @@ export default function ActivitiesScreen({ navigation }) {
               
               <View style={styles.categoryHeader}>
                 <View style={[styles.emojiCircle, { backgroundColor: `${category.color}15` }]}>
-                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  <MaterialCommunityIcons name={category.icon} size={32} color={category.color} />
                 </View>
                 <View style={styles.categoryArrow}>
                   <Text style={[styles.arrowText, { color: category.color }]}>→</Text>
@@ -74,22 +75,22 @@ export default function ActivitiesScreen({ navigation }) {
           <Text style={styles.statsSectionTitle}>Activity Benefits</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>💪</Text>
+              <MaterialCommunityIcons name="arm-flex-outline" size={32} color="#ff6b6b" />
               <Text style={styles.statLabel}>Strength</Text>
               <Text style={styles.statValue}>Build Power</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>❤️</Text>
+              <MaterialCommunityIcons name="heart-pulse" size={32} color="#ff6b9d" />
               <Text style={styles.statLabel}>Cardio</Text>
               <Text style={styles.statValue}>Heart Health</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>⚡</Text>
+              <MaterialCommunityIcons name="lightning-bolt-outline" size={32} color="#ffd700" />
               <Text style={styles.statLabel}>Energy</Text>
               <Text style={styles.statValue}>Stay Active</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>🎯</Text>
+              <MaterialCommunityIcons name="target" size={32} color="#4a90e2" />
               <Text style={styles.statLabel}>Focus</Text>
               <Text style={styles.statValue}>Mental Clarity</Text>
             </View>
