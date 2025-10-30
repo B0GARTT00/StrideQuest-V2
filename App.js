@@ -12,6 +12,7 @@ import MapActivityScreen from './src/screens/MapActivityScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import LoadingScreen from './src/components/LoadingScreen';
 import GuildDetailScreen from './src/screens/GuildDetailScreen';
+import GuildsScreen from './src/screens/GuildsScreen';
 import GuildChatScreen from './src/screens/GuildChatScreen';
 import UserPreviewModal from './src/screens/UserPreviewModal';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -32,6 +33,7 @@ function AppNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen name="MapActivity" component={MapActivityScreen} />
+    <Stack.Screen name="Guilds" component={GuildsScreen} />
         <Stack.Screen name="GuildDetail" component={GuildDetailScreen} />
   <Stack.Screen name="GuildChat" component={GuildChatScreen} />
         <Stack.Screen
