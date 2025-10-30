@@ -1,5 +1,5 @@
 import React, { useContext, useMemo, useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, UIManager } from 'react-native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import { AppContext } from '../context/AppState';
 import Header from '../components/Header';
@@ -8,8 +8,12 @@ import BadgeIcon from '../components/BadgeIcon';
 import { getTier, TIERS_ORDER } from '../utils/ranks';
 import LeaderboardService from '../services/LeaderboardService';
 
-// Enable LayoutAnimation for Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+// Enable LayoutAnimation for Android (only if not using new architecture)
+if (
+  Platform.OS === 'android' && 
+  UIManager.setLayoutAnimationEnabledExperimental &&
+  !global.nativeFabricUIManager
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

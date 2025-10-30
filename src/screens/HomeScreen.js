@@ -3,6 +3,7 @@ import { View, Modal, TouchableOpacity, ScrollView, Text, StyleSheet, Animated }
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import StatusCard from '../components/StatusCard';
+import ActivityIcon from '../components/ActivityIcon';
 import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
@@ -180,9 +181,7 @@ export default function HomeScreen({ navigation }) {
               <View key={a.id} style={styles.activityCard}>
                 <View style={styles.activityLeft}>
                   <View style={styles.activityIconCircle}>
-                    <Text style={styles.activityEmoji}>
-                      {a.type === 'Run' ? '🏃' : a.type === 'Walk' ? '🚶' : '🚴'}
-                    </Text>
+                    <ActivityIcon type={a.type} color={theme.colors.gold} size={28} />
                   </View>
                   <View style={styles.activityInfo}>
                     <Text style={styles.activityType}>{a.type}</Text>
@@ -269,7 +268,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginHorizontal: 12,
     backgroundColor: '#0f0d12',
-    borderRadius: 20,
+    borderRadius: 15,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',

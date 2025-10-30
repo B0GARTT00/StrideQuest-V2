@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image } from 'react-native';
 import { theme } from '../theme/ThemeProvider';
 
 export default function SplashScreen({ navigation, disableTap = false }) {
@@ -56,6 +56,9 @@ export default function SplashScreen({ navigation, disableTap = false }) {
   return (
     <TouchableOpacity style={styles.bg} activeOpacity={1} onPress={handleTap}>
       <Animated.View style={[styles.center, { transform: [{ scale }], opacity }]}>
+        {/* Logo Image */}
+        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+        
         <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>Stride Quest</Text>
         {!disableTap && <Text style={styles.tapHint}>Tap to continue</Text>}
       </Animated.View>
@@ -71,7 +74,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a0f2e'
   },
   // glow removed to keep a uniform background color
-  center: { alignItems: 'center' },
+  center: { 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 180,
+    height: 180,
+    marginBottom: 24,
+    borderRadius: 90, // Makes it circular (half of width/height)
+    overflow: 'hidden', // Crops to circle shape
+    alignSelf: 'center', // Ensures horizontal centering
+  },
   title: {
     color: '#fff',
     fontSize: 64,
