@@ -3,6 +3,22 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal } from 'r
 import { theme } from '../theme/ThemeProvider';
 import * as FirebaseService from '../services/FirebaseService';
 
+// Module-scope helpers and constants so StyleSheets can safely reference them
+const STATUS = (theme && theme.colors && theme.colors.status) ? theme.colors.status : '#c77dff';
+const STATUS_LIGHT = (theme && theme.colors && theme.colors.statusLight) ? theme.colors.statusLight : '#e0aaff';
+const hexToRgba = (hex, alpha = 1) => {
+  try {
+    const h = hex.replace('#', '');
+    const bigint = parseInt(h, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  } catch (e) {
+    return `rgba(199,125,255,${alpha})`;
+  }
+};
+
 export default function StatusCard({ player = {}, compact = false, modal = false, onClose, onStatsChanged, cornerImages = {} }) {
   const [allocating, setAllocating] = useState(false);
   const [localStats, setLocalStats] = useState(null);
@@ -21,6 +37,10 @@ export default function StatusCard({ player = {}, compact = false, modal = false
     remaining: localRemaining !== null ? localRemaining : (player.remaining ?? 0),
     userId: player.userId
   };
+
+  // Use module constants to avoid scope issues in styles
+  const status = STATUS;
+  const statusLight = STATUS_LIGHT;
 
   const handleAllocateStat = async (statName) => {
     if (p.remaining <= 0) {
@@ -247,26 +267,26 @@ const styles = StyleSheet.create({
   blueFrame: {
     width: '92%',
     backgroundColor: '#1a0f2e',
-    borderColor: '#c77dff',
+    borderColor: STATUS,
     borderWidth: 3,
     padding: 18,
     borderRadius: 8,
     alignItems: 'stretch',
-    shadowColor: '#c77dff',
+    shadowColor: STATUS,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
     elevation: 10
   },
   bigHeader: { 
-    color: '#e0aaff', 
+    color: STATUS_LIGHT, 
     textAlign: 'center', 
     fontWeight: '900', 
     fontSize: 20, 
     marginBottom: 12, 
     fontFamily: 'SoloLevel',
     letterSpacing: 4,
-    textShadowColor: '#c77dff',
+    textShadowColor: STATUS,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10
   },
@@ -306,14 +326,14 @@ const styles = StyleSheet.create({
   remaining: { color: '#fff', fontWeight: '800' },
   distributeButton: {
     marginTop: 16,
-    backgroundColor: '#c77dff',
+    backgroundColor: STATUS,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 6,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e0aaff',
-    shadowColor: '#c77dff',
+    borderColor: STATUS_LIGHT,
+    shadowColor: STATUS,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 8,
@@ -333,31 +353,31 @@ const styles = StyleSheet.create({
   },
   distributeModal: {
     backgroundColor: '#1a0f2e',
-    borderColor: '#c77dff',
+    borderColor: STATUS,
     borderWidth: 3,
     borderRadius: 8,
     padding: 24,
     width: '90%',
     maxWidth: 400,
-    shadowColor: '#c77dff',
+    shadowColor: STATUS,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 20,
   },
   distributeTitle: {
-    color: '#e0aaff',
+    color: STATUS_LIGHT,
     fontSize: 20,
     fontWeight: '900',
     textAlign: 'center',
     marginBottom: 4,
     fontFamily: 'SoloLevel',
     letterSpacing: 4,
-    textShadowColor: '#c77dff',
+    textShadowColor: STATUS,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
   distributeSubtitle: {
-    color: '#e0aaff',
+    color: STATUS_LIGHT,
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
@@ -374,10 +394,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    backgroundColor: hexToRgba(STATUS, 0.1),
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(199, 125, 255, 0.3)',
+    borderColor: hexToRgba(STATUS, 0.3),
   },
   distributeStat: {
     color: '#e0aaff',
@@ -393,11 +413,11 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   distributeButton2: {
-    backgroundColor: '#c77dff',
+    backgroundColor: STATUS,
     paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: 6,
-    shadowColor: '#c77dff',
+    shadowColor: STATUS,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
@@ -408,13 +428,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   closeDistributeButton: {
-    backgroundColor: '#e0aaff',
+    backgroundColor: STATUS_LIGHT,
     paddingVertical: 12,
     borderRadius: 6,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#c77dff',
-    shadowColor: '#c77dff',
+    borderColor: STATUS,
+    shadowColor: STATUS,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 8,
@@ -444,23 +464,23 @@ Object.assign(styles, StyleSheet.create({
   headerWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   headerLine: { 
     height: 2, 
-    backgroundColor: '#c77dff', 
+    backgroundColor: STATUS, 
     flex: 1, 
     marginHorizontal: 8,
-    shadowColor: '#c77dff',
+    shadowColor: STATUS,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 5
   },
-  infoLabel: { color: '#d4a5ff', fontWeight: '700', marginBottom: 6 },
+  infoLabel: { color: STATUS_LIGHT, fontWeight: '700', marginBottom: 6 },
   infoValue: { color: '#fff', fontWeight: '900' },
   hpBlock: { marginVertical: 6 },
   hpRow: { flexDirection: 'row', alignItems: 'center' },
-  underline: { height: 2, backgroundColor: '#c77dff', marginVertical: 6 },
+  underline: { height: 2, backgroundColor: STATUS, marginVertical: 6 },
   sepRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  longSep: { backgroundColor: '#c77dff', height: 2, flex: 1 },
-  diamond: { color: '#e0aaff', marginLeft: 8, fontSize: 18 },
-  corner: { position: 'absolute', width: 28, height: 28, borderColor: '#c77dff', borderWidth: 3, opacity: 0.9 },
+  longSep: { backgroundColor: STATUS, height: 2, flex: 1 },
+  diamond: { color: STATUS_LIGHT, marginLeft: 8, fontSize: 18 },
+  corner: { position: 'absolute', width: 28, height: 28, borderColor: STATUS, borderWidth: 3, opacity: 0.9 },
   topLeft: { left: -10, top: -10, borderLeftWidth: 0, borderTopWidth: 0, transform: [{ rotate: '0deg' }] },
   topRight: { right: -10, top: -10, borderRightWidth: 0, borderTopWidth: 0, transform: [{ rotate: '90deg' }] },
   bottomLeft: { left: -10, bottom: -10, borderLeftWidth: 0, borderBottomWidth: 0, transform: [{ rotate: '-90deg' }] },

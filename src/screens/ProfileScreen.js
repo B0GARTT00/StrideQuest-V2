@@ -8,16 +8,87 @@ import BadgeIcon from '../components/BadgeIcon';
 import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import FirebaseService from '../services/FirebaseService';
+import FriendService from '../services/FriendService';
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen({ navigation, route }) {
+  // App state and current user
   const { state, currentUser, logout, getCurrentUserProfile, getCurrentUserId, loadUserData } = useContext(AppContext);
+
+  // Determine which profile to show (self vs from navigation)
+  const userIdParam = route?.params?.userId;
+  const userProfile = userIdParam
+    ? (state.users && state.users.find(u => u.id === userIdParam))
+    : (getCurrentUserProfile || (state.users && state.users[0]));
+
+  // Determine if viewing own profile or another user's profile
+  const viewingOwnProfile = currentUser && userProfile && (currentUser.uid === userProfile.id);
+
+  // Friend UI state
+  const [isFriend, setIsFriend] = useState(false);
+  const [friendRequestSent, setFriendRequestSent] = useState(false);
+  const [friends, setFriends] = useState([]);
+
+  // Check if already friends
+  useEffect(() => {
+    const checkFriend = async () => {
+      if (viewingOwnProfile || !currentUser || !userProfile) return;
+      const res = await FriendService.getFriends(currentUser.uid);
+      if (res.success && res.data.includes(userProfile.id)) {
+        setIsFriend(true);
+      } else {
+        setIsFriend(false);
+      }
+    };
+    checkFriend();
+  }, [currentUser, userProfile]);
+
+  // Handle sending friend request
+  const handleAddFriend = async () => {
+    if (!currentUser || !userProfile) return;
+    setFriendRequestSent(true);
+    const res = await FriendService.sendFriendRequest(currentUser.uid, userProfile.id);
+    if (res.success) {
+      Alert.alert('Friend Request Sent', 'Your friend request has been sent!');
+    } else {
+      Alert.alert('Error', res.message || 'Failed to send friend request.');
+      setFriendRequestSent(false);
+    }
+  };
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [profilePicture, setProfilePicture] = useState(null);
-  
-  // Get current user's profile or use demo user
-  const userProfile = getCurrentUserProfile || (state.users && state.users[0]);
+
+  // Load friends for displayed profile (enriched with user data)
+  useEffect(() => {
+    const loadFriends = async () => {
+      try {
+        if (!userProfile?.id) {
+          setFriends([]);
+          return;
+        }
+        const res = await FriendService.getFriends(userProfile.id);
+        if (!res.success || !Array.isArray(res.data)) {
+          setFriends([]);
+          return;
+        }
+        const ids = res.data.filter(Boolean);
+        if (ids.length === 0) {
+          setFriends([]);
+          return;
+        }
+        const profiles = await Promise.all(ids.map(async id => {
+          const u = await FirebaseService.getUser(id);
+          return u.success ? u.data : null;
+        }));
+        setFriends(profiles.filter(Boolean));
+      } catch (e) {
+        console.error('Error loading friends:', e);
+        setFriends([]);
+      }
+    };
+    loadFriends();
+  }, [userProfile?.id]);
   
   // Update local profile picture state when user profile changes
   useEffect(() => {
@@ -56,21 +127,25 @@ export default function ProfileScreen({ navigation }) {
     return TITLES[titleId] || TITLES['newbie'];
   }, [userProfile]);
   
-  // Load user's activities
+  // Load activities for the profile being viewed (self or other user)
   useEffect(() => {
     const loadActivities = async () => {
-      const userId = getCurrentUserId;
+      const userId = userProfile?.id;
       if (userId) {
         setLoadingActivities(true);
         const result = await FirebaseService.getUserActivities(userId, 100);
         if (result.success && result.data) {
           setActivities(result.data);
+        } else {
+          setActivities([]);
         }
         setLoadingActivities(false);
+      } else {
+        setActivities([]);
       }
     };
     loadActivities();
-  }, [getCurrentUserId]);
+  }, [userProfile?.id]);
 
   // Calculate activity statistics
   const activityStats = useMemo(() => {
@@ -259,6 +334,29 @@ export default function ProfileScreen({ navigation }) {
                 </Text>
               </View>
               <Text style={styles.profileRank}>Global Rank: #{rank}</Text>
+              {/* Add Friend Button (only if viewing another user and not already friends) */}
+              {(!viewingOwnProfile && currentUser && userProfile && currentUser.uid !== userProfile.id && !isFriend && !friendRequestSent) && (
+                <TouchableOpacity style={{
+                  backgroundColor: theme.colors.accent,
+                  borderRadius: 10,
+                  padding: 12,
+                  alignItems: 'center',
+                  marginTop: 10
+                }} onPress={handleAddFriend}>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>Add Friend</Text>
+                </TouchableOpacity>
+              )}
+              {(!viewingOwnProfile && currentUser && userProfile && currentUser.uid !== userProfile.id && friendRequestSent) && (
+                <View style={{
+                  backgroundColor: theme.colors.muted,
+                  borderRadius: 10,
+                  padding: 12,
+                  alignItems: 'center',
+                  marginTop: 10
+                }}>
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>Friend Request Sent</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -285,16 +383,39 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.progressPercent}>{Math.floor((userProfile.xp % 1000) / 10)}%</Text>
             </View>
             <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { width: `${(userProfile.xp % 1000) / 10}%`, backgroundColor: tier.color }
-                ]} 
-              />
+              {/* ...progress bar code... */}
             </View>
             <Text style={styles.progressText}>
               {userProfile.xp % 1000} / 1000 XP
             </Text>
+          </View>
+
+          {/* Friends List Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Friends</Text>
+            {friends.length === 0 ? (
+              <Text style={{ color: theme.colors.muted, fontSize: 14, textAlign: 'center', marginVertical: 8 }}>No friends yet</Text>
+            ) : (
+              friends.map(friend => (
+                <TouchableOpacity
+                  key={friend.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#18141c',
+                    borderRadius: 10,
+                    padding: 12,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.06)'
+                  }}
+                  onPress={() => navigation.navigate('Profile', { userId: friend.id })}
+                >
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: theme.colors.text, marginRight: 12 }}>{friend.name}</Text>
+                  <Text style={{ fontSize: 13, color: theme.colors.muted }}>Level {friend.level}</Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
 
@@ -339,51 +460,55 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Account Info */}
+        {/* Account Info (shows the viewed user's info) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account Information</Text>
           
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{currentUser ? currentUser.email : 'Guest User'}</Text>
+              <Text style={styles.infoValue}>
+                {viewingOwnProfile ? (currentUser?.email || 'Unknown') : 'Hidden'}
+              </Text>
             </View>
             <View style={styles.infoDivider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>User ID</Text>
               <Text style={styles.infoValue} numberOfLines={1}>
-                {currentUser ? currentUser.uid.substring(0, 12) + '...' : 'demo-user'}
+                {userProfile?.id ? userProfile.id.substring(0, 12) + '...' : 'Unknown'}
               </Text>
             </View>
             <View style={styles.infoDivider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Account Type</Text>
-              <Text style={[styles.infoValue, { color: currentUser ? theme.colors.gold : theme.colors.accent }]}>
-                {currentUser ? 'Registered' : 'Guest'}
+              <Text style={[styles.infoValue, { color: viewingOwnProfile ? theme.colors.gold : theme.colors.muted }]}>
+                {viewingOwnProfile ? 'Registered' : 'User'}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions</Text>
-          
-          {currentUser ? (
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutButtonText}>Logout</Text>
-              <Text style={styles.logoutIcon}>→</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={styles.loginButton} 
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.loginButtonText}>Login / Register</Text>
-              <Text style={styles.loginIcon}>→</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Actions (only for your own profile) */}
+        {viewingOwnProfile && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Actions</Text>
+            
+            {currentUser ? (
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Text style={styles.logoutButtonText}>Logout</Text>
+                <Text style={styles.logoutIcon}>→</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={styles.loginButton} 
+                onPress={() => navigation.navigate('Login')}
+              >
+                <Text style={styles.loginButtonText}>Login / Register</Text>
+                <Text style={styles.loginIcon}>→</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>

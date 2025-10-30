@@ -29,7 +29,7 @@ const RANK_DUMMY_USERS = [
 ];
 
 // Animated Collapsible Tier Component
-const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor }) => {
+const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor, navigation }) => {
   const [contentHeight, setContentHeight] = useState(0);
   const heightAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -166,7 +166,12 @@ const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor }) => 
           {tierData.users.map((user, idx) => {
             const globalRank = sorted.indexOf(user) + 1;
             return (
-              <View key={user.id} style={styles.tierUserRow}>
+              <TouchableOpacity
+                key={user.id}
+                style={styles.tierUserRow}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('UserPreview', { userId: user.id })}
+              >
                 <View style={styles.tierUserRank}>
                   <Text style={styles.tierUserRankText}>#{globalRank}</Text>
                 </View>
@@ -177,7 +182,7 @@ const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor }) => 
                 <View style={[styles.tierUserBadge, { borderColor: tierColor }]}>
                   <Text style={[styles.tierUserBadgeText, { color: tierColor }]}>{tierData.key}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -305,7 +310,6 @@ export default function LeaderboardScreen({ navigation }) {
             {tiersData.map(t => {
               const isExpanded = expandedTiers.has(t.key);
               const tierColor = getTier(t.top ? t.top.xp : 0, t.top ? t.top.hasMonarchTitle : false).color;
-              
               return (
                 <AnimatedTier
                   key={t.key}
@@ -314,6 +318,7 @@ export default function LeaderboardScreen({ navigation }) {
                   isExpanded={isExpanded}
                   onToggle={() => toggleTier(t.key)}
                   tierColor={tierColor}
+                  navigation={navigation}
                 />
               );
             })}

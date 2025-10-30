@@ -13,6 +13,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import LoadingScreen from './src/components/LoadingScreen';
 import GuildDetailScreen from './src/screens/GuildDetailScreen';
 import GuildChatScreen from './src/screens/GuildChatScreen';
+import UserPreviewModal from './src/screens/UserPreviewModal';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +34,16 @@ function AppNavigator() {
         <Stack.Screen name="MapActivity" component={MapActivityScreen} />
         <Stack.Screen name="GuildDetail" component={GuildDetailScreen} />
   <Stack.Screen name="GuildChat" component={GuildChatScreen} />
+        <Stack.Screen
+          name="UserPreview"
+          component={UserPreviewModal}
+          options={{ presentation: 'transparentModal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="UserProfile"
+          component={ProfileScreen}
+          options={{ presentation: 'modal', headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -7,6 +7,10 @@ export const theme = {
     background: '#FBF8FA',
     // Light pastel accent
     accent: '#EBBAF2',
+    // Status / modal glow color used by the Status modal and related UI
+    status: '#c77dff',
+    // Lighter variant of the status color
+    statusLight: '#e0aaff',
     // Deep purple primary (for cards, headers)
     primary: '#463671',
     // Near-black for strong contrast

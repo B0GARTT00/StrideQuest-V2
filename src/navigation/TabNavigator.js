@@ -5,10 +5,11 @@ import HomeScreen from '../screens/HomeScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ActivityCategoryScreen from '../screens/ActivityCategoryScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
+import WorldChatScreen from '../screens/WorldChatScreen';
 import QuestScreen from '../screens/QuestScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import TitlesScreen from '../screens/TitlesScreen';
-import GuildsScreen from '../screens/GuildsScreen';
+// Guilds screen removed from tab navigator; access via Home card
 import { theme } from '../theme/ThemeProvider';
 import GuildService from '../services/GuildService';
 import { AppContext } from '../context/AppState';
@@ -69,7 +70,8 @@ export default function TabNavigator() {
         if (route.name === 'Quest') name = 'flag';
         if (route.name === 'Guilds') name = 'groups';
         if (route.name === 'Titles') name = 'military-tech';
-        if (route.name === 'Leaderboard') name = 'leaderboard';
+  if (route.name === 'Leaderboard') name = 'leaderboard';
+  if (route.name === 'WorldChat') name = 'forum';
         if (route.name === 'Profile') name = 'person';
         const icon = <MaterialIcons name={name} size={size + 2} color={color} />;
         // Always show only the icon for Guilds tab, no unread badge
@@ -78,8 +80,8 @@ export default function TabNavigator() {
     })}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Activities" component={ActivitiesNavigator} />
-      <Tab.Screen name="Quest" component={QuestScreen} />
-      <Tab.Screen name="Guilds" component={GuildsScreen} />
+  <Tab.Screen name="Quest" component={QuestScreen} />
+  <Tab.Screen name="WorldChat" component={WorldChatScreen} />
       <Tab.Screen name="Titles" component={TitlesScreen} />
       <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />

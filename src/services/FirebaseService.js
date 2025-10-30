@@ -6,6 +6,7 @@ import {
   setDoc, 
   updateDoc, 
   query, 
+  where,
   orderBy, 
   limit,
   onSnapshot,
@@ -351,6 +352,44 @@ export const getUserActivities = async (userId, limitCount = 20) => {
   } catch (error) {
     console.error('Error getting activities:', error);
     return { success: false, error };
+  }
+};
+
+/**
+ * Subscribe to a user's activities in real-time.
+ * Calls callback(activitiesArray) on update, or callback(null, error) on error.
+ * Returns an unsubscribe function.
+ */
+export const subscribeToUserActivities = (userId, limitCount = 20, callback) => {
+  try {
+    const activitiesRef = collection(db, 'activities');
+    // Avoid requiring a composite index by removing orderBy here;
+    // we'll sort by createdAt on the client after fetching.
+    const q = query(
+      activitiesRef,
+      where('userId', '==', userId),
+      limit(limitCount)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const activities = [];
+      snapshot.forEach((docSnap) => {
+        activities.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      // Sort descending by createdAt timestamp if present
+      const sorted = activities.sort((a, b) => {
+        const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?._seconds ? a.createdAt._seconds * 1000 : 0);
+        const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?._seconds ? b.createdAt._seconds * 1000 : 0);
+        return tb - ta;
+      });
+      try { callback(sorted); } catch (e) { /* ignore */ }
+    }, (error) => {
+      console.error('subscribeToUserActivities error:', error);
+      try { callback(null, error); } catch (e) { /* ignore */ }
+    });
+    return unsub;
+  } catch (error) {
+    console.error('Error setting up subscribeToUserActivities:', error);
+    return () => {};
   }
 };
 
@@ -975,6 +1014,7 @@ export default {
   getTopUsers,
   subscribeToLeaderboard,
   saveActivity,
+  subscribeToUserActivities,
   getUserActivities,
   saveQuest,
   getQuests,

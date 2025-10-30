@@ -8,11 +8,7 @@ import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
 import GuildService from '../services/GuildService';
 
-const mockActivities = [
-  { id: 'a1', type: 'Run', distanceKm: 5.2, time: '28:14', xp: 120 },
-  { id: 'a2', type: 'Walk', distanceKm: 2.4, time: '24:02', xp: 80 },
-  { id: 'a3', type: 'Cycle', distanceKm: 12.1, time: '42:10', xp: 200 }
-];
+// Recent activities will be loaded from Firestore in real-time
 
 // Helper function to get title display name
 const getTitleName = (titleId) => {
@@ -40,10 +36,13 @@ const getTitleName = (titleId) => {
 export default function HomeScreen({ navigation }) {
   const { state, getCurrentUserProfile, loadUserData } = useContext(AppContext);
   const me = getCurrentUserProfile || (state.users && state.users[0]);
+  const [activities, setActivities] = useState([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [myGuild, setMyGuild] = useState(null);
   const [guildLoading, setGuildLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [discoverCount, setDiscoverCount] = useState(0);
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -67,6 +66,20 @@ export default function HomeScreen({ navigation }) {
   
   const expPercent = getXPProgress();
   const tier = me ? getTier(me.xp, me.hasMonarchTitle) : { key: 'E', color: '#4a90e2' };
+
+  // small helper to convert a hex theme color to rgba for subtle card backgrounds
+  const hexToRgba = (hex, alpha = 1) => {
+    try {
+      const h = hex.replace('#', '');
+      const bigint = parseInt(h, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r},${g},${b},${alpha})`;
+    } catch (e) {
+      return `rgba(199,125,255,${alpha})`;
+    }
+  };
 
   const myRank = useMemo(() => {
     if (!state.users || !me) return 1;
@@ -109,16 +122,58 @@ export default function HomeScreen({ navigation }) {
       }
     };
     load();
+    // also load discoverable guilds count
+    const loadDiscover = async () => {
+      try {
+        const res = await GuildService.getAllGuilds(200);
+        if (res.success && Array.isArray(res.data)) {
+          const all = res.data;
+          const count = all.filter(g => g.id !== (me?.guildId || null)).length;
+          if (mounted) setDiscoverCount(count);
+        } else {
+          if (mounted) setDiscoverCount(0);
+        }
+      } catch (e) {
+        if (mounted) setDiscoverCount(0);
+      }
+    };
+    loadDiscover();
     return () => {
       mounted = false;
       if (unsubUnread) unsubUnread();
     };
   }, [me?.guildId]);
 
+  // Subscribe to current user's recent activities in real-time
+  useEffect(() => {
+    let unsub = null;
+    let mounted = true;
+    const start = async () => {
+      if (!me?.id) return;
+      setActivitiesLoading(true);
+      unsub = FirebaseService.subscribeToUserActivities(me.id, 10, (arr, err) => {
+        if (!mounted) return;
+        if (err) {
+          console.error('Activities subscribe error:', err);
+          setActivities([]);
+          setActivitiesLoading(false);
+          return;
+        }
+        setActivities(Array.isArray(arr) ? arr : []);
+        setActivitiesLoading(false);
+      });
+    };
+    start();
+    return () => {
+      mounted = false;
+      if (unsub) try { unsub(); } catch {}
+    };
+  }, [me?.id]);
+
   if (!me) {
     return (
       <View style={globalStyles.container}>
-        <Header title="" showTitle={false} rightLabel="Profile" onPressRight={() => navigation.navigate('Profile')} />
+        <Header title="" showTitle={false} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ color: theme.colors.text }}>Loading...</Text>
         </View>
@@ -128,7 +183,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={globalStyles.container}>
-      <Header title="" showTitle={false} rightLabel="Profile" onPressRight={() => navigation.navigate('Profile')} />
+      <Header title="" showTitle={false} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Hero Status Card */}
@@ -182,19 +237,7 @@ export default function HomeScreen({ navigation }) {
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity 
-            style={[styles.quickActionCard, styles.primaryAction]} 
-            onPress={() => navigation.navigate('MapActivity')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.actionIconWrap}>
-              <Text style={styles.actionIcon}>🏃</Text>
-            </View>
-            <Text style={styles.actionTitle}>Start Activity</Text>
-            <Text style={styles.actionSubtitle}>Begin your journey</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.quickActionCard} 
+            style={[styles.quickActionCard, styles.primaryAction, { borderColor: theme.colors.status, backgroundColor: hexToRgba(theme.colors.status, 0.06) }]} 
             onPress={() => {
               if (myGuild) navigation.navigate('GuildDetail', { guildId: myGuild.id });
               else navigation.navigate('Guilds');
@@ -209,12 +252,23 @@ export default function HomeScreen({ navigation }) {
                 </View>
               )}
             </View>
-            <Text style={styles.actionTitle}>{myGuild ? 'My Guild' : 'Find a Guild'}</Text>
+            <Text style={styles.actionTitle}>{myGuild ? 'My Guild' : 'My Guild'}</Text>
             <Text style={styles.actionSubtitle} numberOfLines={1}>
               {guildLoading ? 'Loading…' : myGuild ? `${myGuild.emblem} ${myGuild.name}` : 'Create or join now'}
             </Text>
           </TouchableOpacity>
-// ...existing code...
+
+          <TouchableOpacity
+            style={[styles.quickActionCard, { borderColor: theme.colors.status, backgroundColor: hexToRgba(theme.colors.status, 0.04) }]}
+            onPress={() => navigation.navigate('Guilds')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.actionIconWrap}>
+              <Text style={styles.actionIcon}>🔎</Text>
+            </View>
+            <Text style={styles.actionTitle}>Guilds</Text>
+            <Text style={styles.actionSubtitle}>{discoverCount > 0 ? `${discoverCount} guilds to join` : 'Discover guilds'}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Recent Activities */}
@@ -227,24 +281,36 @@ export default function HomeScreen({ navigation }) {
           </View>
           
           <View style={styles.activitiesList}>
-            {mockActivities.map((a, idx) => (
-              <View key={a.id} style={styles.activityCard}>
-                <View style={styles.activityLeft}>
-                  <View style={styles.activityIconCircle}>
-                    <Text style={styles.activityEmoji}>
-                      {a.type === 'Run' ? '🏃' : a.type === 'Walk' ? '🚶' : '🚴'}
-                    </Text>
+            {activitiesLoading ? (
+              <Text style={{ color: theme.colors.muted, padding: 8 }}>Loading activities…</Text>
+            ) : activities && activities.length > 0 ? (
+              activities.slice(0, 4).map((a) => {
+                const emoji = a.type?.toLowerCase() === 'run' ? '🏃' : a.type?.toLowerCase() === 'walk' ? '🚶' : '🚴';
+                const duration = typeof a.durationMinutes === 'number'
+                  ? `${Math.floor(a.durationMinutes / 60)}:${String(a.durationMinutes % 60).padStart(2, '0')}`
+                  : (a.time || '');
+                const xp = a.xpEarned ?? a.xp ?? 0;
+                const dist = a.distanceKm ?? 0;
+                return (
+                  <View key={a.id} style={styles.activityCard}>
+                    <View style={styles.activityLeft}>
+                      <View style={styles.activityIconCircle}>
+                        <Text style={styles.activityEmoji}>{emoji}</Text>
+                      </View>
+                      <View style={styles.activityInfo}>
+                        <Text style={styles.activityType}>{a.type || 'Activity'}</Text>
+                        <Text style={styles.activityMeta}>{dist} km • {duration}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.activityRight}>
+                      <Text style={styles.activityXP}>+{xp} XP</Text>
+                    </View>
                   </View>
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityType}>{a.type}</Text>
-                    <Text style={styles.activityMeta}>{a.distanceKm} km • {a.time}</Text>
-                  </View>
-                </View>
-                <View style={styles.activityRight}>
-                  <Text style={styles.activityXP}>+{a.xp} XP</Text>
-                </View>
-              </View>
-            ))}
+                );
+              })
+            ) : (
+              <Text style={{ color: theme.colors.muted, padding: 8 }}>No recent activities</Text>
+            )}
           </View>
         </View>
 
@@ -400,18 +466,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 2,
-    borderColor: theme.colors.gold,
+    borderColor: theme.colors.status || '#c77dff',
     alignItems: 'center',
     justifyContent: 'center'
   },
   levelLabel: {
-    color: theme.colors.muted,
+    color: theme.colors.statusLight || '#e0aaff',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1
   },
   levelNumber: {
-    color: theme.colors.gold,
+    color: theme.colors.statusLight || '#e0aaff',
     fontSize: 24,
     fontWeight: '900',
     marginTop: 2
