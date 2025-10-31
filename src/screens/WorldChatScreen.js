@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import { AppContext } from '../context/AppState';
-import ChatService from '../services/ChatService';
+import * as ChatService from '../services/ChatService';
 
 export default function WorldChatScreen() {
   const { currentUser, getCurrentUserProfile } = useContext(AppContext);
