@@ -1,16 +1,20 @@
+import { getUserRanks } from '../services/RankService';
 import React, { useContext, useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator, FlatList, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import Card from '../components/Card';
 import BadgeIcon from '../components/BadgeIcon';
 import { AppContext } from '../context/AppState';
-import { getTier } from '../utils/ranks';
 import FirebaseService from '../services/FirebaseService';
+import { getTier } from '../utils/ranks';
 import FriendService from '../services/FriendService';
 
 export default function ProfileScreen({ navigation, route }) {
+  // Ranks state
+  const [globalRank, setGlobalRank] = useState(null);
+  const [tierRank, setTierRank] = useState(null);
   // App state and current user
   const { state, currentUser, logout, getCurrentUserProfile, getCurrentUserId, loadUserData } = useContext(AppContext);
 
@@ -27,8 +31,23 @@ export default function ProfileScreen({ navigation, route }) {
   const [isFriend, setIsFriend] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [friends, setFriends] = useState([]);
+  const [friendsModalVisible, setFriendsModalVisible] = useState(false);
 
   // Check if already friends
+  useEffect(() => {
+    // Fetch ranks when userProfile changes
+    let mounted = true;
+    async function fetchRanks() {
+      if (!userProfile?.id || userProfile.xp === undefined) return;
+      const ranks = await getUserRanks(userProfile.id, userProfile.xp, userProfile.hasMonarchTitle, userProfile.level);
+      if (mounted) {
+        setGlobalRank(ranks.globalRank);
+        setTierRank(ranks.tierRank);
+      }
+    }
+    fetchRanks();
+    return () => { mounted = false; };
+  }, [userProfile?.id, userProfile?.xp, userProfile?.level, userProfile?.hasMonarchTitle]);
   useEffect(() => {
     const checkFriend = async () => {
       if (viewingOwnProfile || !currentUser || !userProfile) return;
@@ -42,9 +61,79 @@ export default function ProfileScreen({ navigation, route }) {
     checkFriend();
   }, [currentUser, userProfile]);
 
+  // State for incoming friend requests (with requester profiles)
+  const [incomingRequests, setIncomingRequests] = useState([]);
+
+  // Load incoming friend requests and attach requester display names
+  useEffect(() => {
+    if (!viewingOwnProfile || !currentUser) return;
+    let mounted = true;
+    const loadRequests = async () => {
+      const res = await FriendService.getIncomingFriendRequests(currentUser.uid);
+      if (!mounted) return;
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const items = await Promise.all(res.data.map(async (req) => {
+          const u = await FirebaseService.getUser(req.from);
+          return { from: req.from, user: u.success ? u.data : null };
+        }));
+        if (mounted) setIncomingRequests(items.filter(Boolean));
+      } else {
+        if (mounted) setIncomingRequests([]);
+      }
+    };
+    loadRequests();
+    return () => { mounted = false; };
+  }, [viewingOwnProfile, currentUser]);
+
+  // Accept friend request handler
+  const handleAcceptRequest = async (fromUserId) => {
+    if (!currentUser?.uid) return;
+    if (fromUserId === currentUser.uid) {
+      Alert.alert('Error', 'You cannot accept a friend request from yourself.');
+      return;
+    }
+    const res = await FriendService.acceptFriendRequest(fromUserId, currentUser.uid);
+    if (res.success) {
+      Alert.alert('Friend Request Accepted', 'You are now friends!');
+      setIncomingRequests(requests => requests.filter(r => r.from !== fromUserId));
+      // refresh friends list
+      if (loadUserData) loadUserData(currentUser.uid).catch(() => {});
+      // Also reload friends list for immediate UI update
+      if (userProfile?.id) {
+        const friendsRes = await FriendService.getFriends(userProfile.id);
+        if (friendsRes.success && Array.isArray(friendsRes.data)) {
+          const ids = friendsRes.data.filter(Boolean);
+          const profiles = await Promise.all(ids.map(async id => {
+            const u = await FirebaseService.getUser(id);
+            return u.success ? u.data : null;
+          }));
+          setFriends(profiles.filter(Boolean));
+        }
+      }
+    } else {
+      Alert.alert('Error', res.message || 'Failed to accept friend request.');
+    }
+  };
+
+  // Decline friend request handler
+  const handleDeclineRequest = async (fromUserId) => {
+    if (!currentUser?.uid) return;
+    const res = await FriendService.declineFriendRequest(fromUserId, currentUser.uid);
+    if (res.success) {
+      Alert.alert('Friend Request Declined');
+      setIncomingRequests(requests => requests.filter(r => r.from !== fromUserId));
+    } else {
+      Alert.alert('Error', res.message || 'Failed to decline friend request.');
+    }
+  };
+
   // Handle sending friend request
   const handleAddFriend = async () => {
     if (!currentUser || !userProfile) return;
+    if (currentUser.uid === userProfile.id) {
+      Alert.alert('Error', 'You cannot send a friend request to yourself.');
+      return;
+    }
     setFriendRequestSent(true);
     const res = await FriendService.sendFriendRequest(currentUser.uid, userProfile.id);
     if (res.success) {
@@ -54,6 +143,20 @@ export default function ProfileScreen({ navigation, route }) {
       setFriendRequestSent(false);
     }
   };
+
+  // Listen for incoming friend requests and show notification
+  useEffect(() => {
+    if (!viewingOwnProfile || !currentUser) return;
+    let unsub = false;
+    const checkRequests = async () => {
+      const res = await FriendService.getIncomingFriendRequests(currentUser.uid);
+      if (res.success && Array.isArray(res.data) && res.data.length > 0 && !unsub) {
+        Alert.alert('Friend Request', 'You have a new friend request!');
+      }
+    };
+    checkRequests();
+    return () => { unsub = true; };
+  }, [viewingOwnProfile, currentUser]);
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -334,6 +437,7 @@ export default function ProfileScreen({ navigation, route }) {
                 </Text>
               </View>
               <Text style={styles.profileRank}>Global Rank: #{rank}</Text>
+              <Text style={[styles.profileRank, { fontSize: 14, marginTop: 4 }]}>Tier Rank: {tierRank ? `#${tierRank}` : 'Loading...'}</Text>
               {/* Add Friend Button (only if viewing another user and not already friends) */}
               {(!viewingOwnProfile && currentUser && userProfile && currentUser.uid !== userProfile.id && !isFriend && !friendRequestSent) && (
                 <TouchableOpacity style={{
@@ -360,7 +464,38 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Stats Grid */}
+            {/* XP Progress to Next Level (placed under Global Rank) */}
+            <View style={styles.progressSection}>
+              {(() => {
+                const currentXP = userProfile.xp || 0;
+                const currentLevel = userProfile.level || FirebaseService.calculateLevel(currentXP);
+                const xpForCurrentLevel = FirebaseService.calculateTotalXPForLevel(currentLevel);
+                const xpForNextLevel = FirebaseService.calculateXPForNextLevel(currentLevel);
+                const xpIntoLevel = currentXP - xpForCurrentLevel;
+                const expPercent = currentLevel >= 100 ? 1 : Math.min(1, Math.max(0, xpIntoLevel / xpForNextLevel));
+                const tier = getTier(currentXP, userProfile.hasMonarchTitle, currentLevel) || { color: '#4a90e2' };
+                return (
+                  <>
+                    <View style={styles.progressHeader}>
+                      <Text style={styles.progressLabel}>Progress to Level {currentLevel + 1}</Text>
+                      <Text style={styles.progressPercent}>{currentLevel >= 100 ? '100%' : `${Math.floor(expPercent * 100)}%`}</Text>
+                    </View>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { width: `${expPercent * 100}%`, backgroundColor: tier.color }]} />
+                      <View style={[styles.progressGlow, { width: `${expPercent * 100}%`, backgroundColor: tier.color }]} />
+                    </View>
+                    <Text style={styles.progressText}>
+                      {currentLevel >= 100
+                        ? `${currentXP.toLocaleString()} Total XP`
+                        : `${Math.floor(xpIntoLevel)} / ${xpForNextLevel} XP`
+                      }
+                    </Text>
+                  </>
+                );
+              })()}
+            </View>
+
+            {/* Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Text style={styles.statValue}>{userProfile.level}</Text>
@@ -376,19 +511,37 @@ export default function ProfileScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* XP Progress to Next Level */}
-          <View style={styles.progressSection}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressLabel}>Progress to Level {userProfile.level + 1}</Text>
-              <Text style={styles.progressPercent}>{Math.floor((userProfile.xp % 1000) / 10)}%</Text>
+          {/* Ranks Section (removed duplicate tier rank - tier rank is now shown under Global Rank) */}
+
+          {/* Friend Requests Section (if viewing own profile) */}
+          {viewingOwnProfile && incomingRequests.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Friend Requests</Text>
+              <FlatList
+                data={incomingRequests}
+                keyExtractor={(item) => item.from}
+                renderItem={({ item }) => (
+                  <View style={styles.requestRow}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.requestName} numberOfLines={1} ellipsizeMode="tail">{item.user?.name || item.from}</Text>
+                      {item.user?.level != null && (
+                        <Text style={{ color: theme.colors.muted, fontSize: 12 }}>{`Level ${item.user.level}`}</Text>
+                      )}
+                    </View>
+                    <View style={{ flexDirection: 'row' }}>
+                      <TouchableOpacity style={styles.requestAccept} onPress={() => handleAcceptRequest(item.from)}>
+                        <Text style={styles.requestButtonText}>Accept</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.requestDecline} onPress={() => handleDeclineRequest(item.from)}>
+                        <Text style={styles.requestButtonText}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+              />
             </View>
-            <View style={styles.progressBar}>
-              {/* ...progress bar code... */}
-            </View>
-            <Text style={styles.progressText}>
-              {userProfile.xp % 1000} / 1000 XP
-            </Text>
-          </View>
+          )}
 
           {/* Friends List Section */}
           <View style={styles.section}>
@@ -396,26 +549,81 @@ export default function ProfileScreen({ navigation, route }) {
             {friends.length === 0 ? (
               <Text style={{ color: theme.colors.muted, fontSize: 14, textAlign: 'center', marginVertical: 8 }}>No friends yet</Text>
             ) : (
-              friends.map(friend => (
-                <TouchableOpacity
-                  key={friend.id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: '#18141c',
-                    borderRadius: 10,
-                    padding: 12,
-                    marginBottom: 8,
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.06)'
-                  }}
-                  onPress={() => navigation.navigate('Profile', { userId: friend.id })}
-                >
-                  <Text style={{ fontSize: 18, fontWeight: '900', color: theme.colors.text, marginRight: 12 }}>{friend.name}</Text>
-                  <Text style={{ fontSize: 13, color: theme.colors.muted }}>Level {friend.level}</Text>
-                </TouchableOpacity>
-              ))
+              <>
+                {friends.slice(0, 5).map(friend => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: '#18141c',
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 8,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.06)'
+                    }}
+                    onPress={() => navigation.navigate('UserPreview', { userId: friend.id })}
+                  >
+                    {friend.profilePicture ? (
+                      <Image source={{ uri: friend.profilePicture }} style={styles.friendAvatar} />
+                    ) : (
+                      <View style={[styles.friendAvatarFallback]}> 
+                        <Text style={styles.friendAvatarInitial}>{(friend.name || '?').charAt(0)}</Text>
+                      </View>
+                    )}
+                    <View style={{ flex: 1, paddingLeft: 12 }}>
+                      <Text style={{ fontSize: 18, fontWeight: '900', color: theme.colors.text }}>{friend.name}</Text>
+                      <Text style={{ fontSize: 13, color: theme.colors.muted }}>Level {friend.level}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {friends.length > 0 && (
+                  <TouchableOpacity style={styles.viewAllButton} onPress={() => setFriendsModalVisible(true)}>
+                    <Text style={styles.viewAllText}>View All ({friends.length})</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
+
+            {/* Modal showing all friends */}
+            <Modal
+              visible={friendsModalVisible}
+              animationType="slide"
+              transparent={true}
+              onRequestClose={() => setFriendsModalVisible(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.sectionTitle}>All Friends</Text>
+                    <TouchableOpacity onPress={() => setFriendsModalVisible(false)} style={styles.modalClose}>
+                      <Text style={{ color: theme.colors.muted }}>Close</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={friends}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity style={styles.friendItem} onPress={() => { setFriendsModalVisible(false); navigation.navigate('UserPreview', { userId: item.id }); }}>
+                        {item.profilePicture ? (
+                          <Image source={{ uri: item.profilePicture }} style={styles.friendItemAvatar} />
+                        ) : (
+                          <View style={[styles.friendAvatarFallback, { width: 40, height: 40, borderRadius: 8 }]}> 
+                            <Text style={styles.friendAvatarInitial}>{(item.name || '?').charAt(0)}</Text>
+                          </View>
+                        )}
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                          <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{item.name}</Text>
+                          <Text style={{ color: theme.colors.muted }}>Level {item.level}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                    ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                  />
+                </View>
+              </View>
+            </Modal>
           </View>
         </View>
 
@@ -727,13 +935,90 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    borderRadius: 6
+    borderRadius: 6,
+    position: 'relative',
+    zIndex: 1
+  },
+  progressGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
+    opacity: 0.3,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8
   },
   progressText: {
     color: theme.colors.muted,
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center'
+  },
+  friendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24
+  },
+  friendAvatarFallback: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)'
+  },
+  friendAvatarInitial: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  friendItemAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 8
+  },
+  viewAllButton: {
+    marginTop: 6,
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(199,125,255,0.08)'
+  },
+  viewAllText: {
+    color: theme.colors.gold,
+    fontWeight: '900'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: 20
+  },
+  modalContent: {
+    backgroundColor: '#0f0d12',
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: '80%'
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  modalClose: {
+    padding: 6
+  },
+  friendItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: '#18141c',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)'
   },
   section: {
     marginTop: 20
@@ -864,5 +1149,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     marginLeft: 8
+  }
+  ,
+  requestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#18141c',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)'
+  },
+  requestName: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: theme.colors.text
+  },
+  requestAccept: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginLeft: 6
+  },
+  requestDecline: {
+    backgroundColor: theme.colors.muted,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginLeft: 8
+  },
+  requestButtonText: {
+    color: '#fff',
+    fontWeight: '900'
   }
 });

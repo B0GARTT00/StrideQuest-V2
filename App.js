@@ -17,6 +17,7 @@ import GuildsScreen from './src/screens/GuildsScreen';
 import GuildChatScreen from './src/screens/GuildChatScreen';
 import UserPreviewModal from './src/screens/UserPreviewModal';
 import ProfileScreen from './src/screens/ProfileScreen';
+import DirectChatScreen from './src/screens/DirectChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -42,6 +43,11 @@ function AppNavigator() {
           name="UserPreview"
           component={UserPreviewModal}
           options={{ presentation: 'transparentModal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="DirectChat"
+          component={DirectChatScreen}
+          options={{ presentation: 'modal', headerShown: false }}
         />
         <Stack.Screen
           name="UserProfile"

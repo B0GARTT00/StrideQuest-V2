@@ -41,7 +41,42 @@ export const sendWorldMessage = async (userId, userName, text) => {
   }
 };
 
-export default {
-  subscribeWorldChat,
-  sendWorldMessage
+
+
+// ========== Private / Direct Chats ==========
+
+const getPrivatePath = (a, b) => `privateChats/${[a, b].sort().join('_')}/messages`;
+
+export const subscribePrivateChat = (userA, userB, onMessages, limitCount = 100) => {
+  const path = getPrivatePath(userA, userB);
+  const q = query(ref(realtimeDb, path), orderByChild('createdAt'), limitToLast(limitCount));
+  const unsubscribe = onValue(q, (snapshot) => {
+    const val = snapshot.val() || {};
+    const list = Object.keys(val)
+      .map((key) => ({ id: key, ...val[key] }))
+      .sort((a, b) => a.createdAt - b.createdAt);
+    onMessages(list);
+  });
+  return () => unsubscribe();
 };
+
+export const sendPrivateMessage = async (fromUserId, toUserId, fromUserName, text) => {
+  if (!text || !text.trim()) return { success: false, error: 'Empty message' };
+  try {
+    const path = getPrivatePath(fromUserId, toUserId);
+    const msg = {
+      senderId: fromUserId,
+      senderName: fromUserName,
+      recipientId: toUserId,
+      text: text.trim().slice(0, 1000),
+      createdAt: Date.now()
+    };
+    await push(ref(realtimeDb, path), msg);
+    return { success: true };
+  } catch (e) {
+    console.error('sendPrivateMessage error:', e);
+    return { success: false, error: e?.message || 'Failed to send message' };
+  }
+};
+
+

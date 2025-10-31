@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../theme/ThemeProvider';
 import { AppContext } from '../context/AppState';
@@ -50,7 +50,12 @@ export default function UserPreviewModal({ navigation, route }) {
     if (!currentUser?.uid || !user?.id || currentUser.uid === user.id) return;
     setRequestSent(true);
     const res = await FriendService.sendFriendRequest(currentUser.uid, user.id);
-    if (!res.success) setRequestSent(false);
+    if (res.success) {
+      Alert.alert('Friend Request Sent', 'Your friend request has been sent!');
+    } else {
+      Alert.alert('Error', res.message || 'Failed to send friend request.');
+      setRequestSent(false);
+    }
   };
 
   const close = () => navigation.goBack();
@@ -106,6 +111,16 @@ export default function UserPreviewModal({ navigation, route }) {
             ) : (
               <TouchableOpacity style={styles.primaryButton} onPress={handleAddFriend}>
                 <Text style={styles.primaryButtonText}>Add Friend</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Message button - open private chat */}
+            {currentUser?.uid !== user.id && (
+              <TouchableOpacity
+                style={[styles.secondaryButton, { marginTop: 8 }]}
+                onPress={() => navigation.replace('DirectChat', { userId: user.id, userName: user.name })}
+              >
+                <Text style={[styles.secondaryButtonText]}>Message Privately →</Text>
               </TouchableOpacity>
             )}
 

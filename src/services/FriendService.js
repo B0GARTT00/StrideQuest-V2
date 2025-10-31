@@ -5,6 +5,9 @@ import { db } from '../config/firebase';
  * Send a friend request
  */
 export const sendFriendRequest = async (fromUserId, toUserId) => {
+  if (fromUserId === toUserId) {
+    return { success: false, message: 'Cannot send friend request to yourself.' };
+  }
   try {
     const reqRef = doc(db, 'friendRequests', `${fromUserId}_${toUserId}`);
     await setDoc(reqRef, {
@@ -23,6 +26,9 @@ export const sendFriendRequest = async (fromUserId, toUserId) => {
  * Accept a friend request
  */
 export const acceptFriendRequest = async (fromUserId, toUserId) => {
+  if (fromUserId === toUserId) {
+    return { success: false, message: 'Cannot accept friend request from yourself.' };
+  }
   try {
     const reqRef = doc(db, 'friendRequests', `${fromUserId}_${toUserId}`);
     await updateDoc(reqRef, { status: 'accepted', updatedAt: serverTimestamp() });
