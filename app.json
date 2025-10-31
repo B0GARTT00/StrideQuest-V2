@@ -46,7 +46,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Stride Quest to use your location to track your activities."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
