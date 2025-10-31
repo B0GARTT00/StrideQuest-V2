@@ -71,6 +71,124 @@ const AVAILABLE_TITLES = [
     color: theme.colors.gold,
     rarity: 'Legendary'
   },
+  // Distance Achievement Titles
+  { 
+    id: 'sprinter', 
+    name: 'Sprinter', 
+    description: 'Quick on your feet',
+    requirement: 'Complete 5km in a single activity',
+    requiresDistance: 5,
+    color: '#4ec9b0',
+    rarity: 'Common'
+  },
+  { 
+    id: 'distance_runner', 
+    name: 'Distance Runner', 
+    description: 'Building endurance',
+    requirement: 'Complete 10km in a single activity',
+    requiresDistance: 10,
+    color: '#569cd6',
+    rarity: 'Uncommon'
+  },
+  { 
+    id: 'half_marathoner', 
+    name: 'Half Marathoner', 
+    description: 'Conquered the half marathon',
+    requirement: 'Complete 21km in a single activity',
+    requiresDistance: 21,
+    color: '#ce9178',
+    rarity: 'Rare'
+  },
+  { 
+    id: 'marathoner', 
+    name: 'Marathoner', 
+    description: 'Completed a full marathon distance',
+    requirement: 'Complete 42km in a single activity',
+    requiresDistance: 42,
+    color: '#c586c0',
+    rarity: 'Epic'
+  },
+  { 
+    id: 'ultra_runner', 
+    name: 'Ultra Runner', 
+    description: 'Beyond human limits',
+    requirement: 'Complete 50km in a single activity',
+    requiresDistance: 50,
+    color: '#d16969',
+    rarity: 'Epic'
+  },
+  { 
+    id: 'endurance_master', 
+    name: 'Endurance Master', 
+    description: 'Master of long distance',
+    requirement: 'Complete 100km in a single activity',
+    requiresDistance: 100,
+    color: '#dcdcaa',
+    rarity: 'Legendary'
+  },
+  { 
+    id: 'iron_legs', 
+    name: 'Iron Legs', 
+    description: 'Legs that never tire',
+    requirement: 'Run a total of 500km',
+    requiresTotalDistance: 500,
+    color: '#b5cea8',
+    rarity: 'Rare'
+  },
+  { 
+    id: 'road_warrior', 
+    name: 'Road Warrior', 
+    description: 'Master of the open road',
+    requirement: 'Run a total of 1000km',
+    requiresTotalDistance: 1000,
+    color: '#4fc1ff',
+    rarity: 'Epic'
+  },
+  { 
+    id: 'journey_master', 
+    name: 'Journey Master', 
+    description: 'Traveled far and wide',
+    requirement: 'Run a total of 2500km',
+    requiresTotalDistance: 2500,
+    color: '#ffd700',
+    rarity: 'Legendary'
+  },
+  { 
+    id: 'speed_demon', 
+    name: 'Speed Demon', 
+    description: 'Lightning fast pace',
+    requirement: 'Complete 5km in under 25 minutes',
+    requiresSpeed: true,
+    color: '#ff6347',
+    rarity: 'Rare'
+  },
+  { 
+    id: 'consistent', 
+    name: 'Consistent', 
+    description: 'Dedication day after day',
+    requirement: 'Complete 30 activities',
+    requiresActivityCount: 30,
+    color: '#32cd32',
+    rarity: 'Uncommon'
+  },
+  { 
+    id: 'dedicated', 
+    name: 'Dedicated', 
+    description: 'Unwavering commitment',
+    requirement: 'Complete 100 activities',
+    requiresActivityCount: 100,
+    color: '#ffa500',
+    rarity: 'Rare'
+  },
+  { 
+    id: 'unstoppable', 
+    name: 'Unstoppable', 
+    description: 'Nothing can stop you',
+    requirement: 'Complete 365 activities',
+    requiresActivityCount: 365,
+    color: '#ff1493',
+    rarity: 'Epic'
+  },
   // Monarch Titles
   { 
     id: 'monarch_destruction', 
@@ -194,15 +312,32 @@ export default function TitlesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedTitleInfo, setSelectedTitleInfo] = useState(null);
+  const [userActivities, setUserActivities] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   console.log('TitlesScreen - userProfile:', userProfile);
   console.log('TitlesScreen - getCurrentUserProfile:', getCurrentUserProfile);
   console.log('TitlesScreen - state.users:', state.users);
 
-  // Load claimed Monarch titles
+  // Load claimed Monarch titles and user activities
   React.useEffect(() => {
     loadClaimedMonarchs();
+    loadUserActivities();
   }, []);
+
+  const loadUserActivities = async () => {
+    if (!userProfile?.id) return;
+    setStatsLoading(true);
+    try {
+      const activities = await FirebaseService.getUserActivities(userProfile.id);
+      if (activities.success) {
+        setUserActivities(activities.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading user activities:', error);
+    }
+    setStatsLoading(false);
+  };
 
   const loadClaimedMonarchs = async () => {
     setLoading(true);
@@ -222,6 +357,13 @@ export default function TitlesScreen({ navigation }) {
 
     console.log('TitlesScreen - User level:', userProfile.level, 'XP:', userProfile.xp);
 
+    // Calculate stats from activities
+    const totalDistanceKm = userActivities.reduce((sum, act) => sum + (act.distanceKm || 0), 0);
+    const maxDistanceKm = userActivities.reduce((max, act) => Math.max(max, act.distanceKm || 0), 0);
+    const activityCount = userActivities.length;
+
+    console.log('Stats:', { totalDistanceKm, maxDistanceKm, activityCount });
+
     return AVAILABLE_TITLES.map(title => {
       if (title.id === 'none') return { ...title, unlocked: true };
       
@@ -238,15 +380,33 @@ export default function TitlesScreen({ navigation }) {
           // Check level and Monarch status
           unlocked = (userProfile.level || 0) >= title.unlockLevel && userProfile.hasMonarchTitle === true;
         }
-      } else if (title.unlockLevel) {
+      } 
+      // Check distance-based achievements
+      else if (title.requiresDistance) {
+        unlocked = maxDistanceKm >= title.requiresDistance;
+      }
+      else if (title.requiresTotalDistance) {
+        unlocked = totalDistanceKm >= title.requiresTotalDistance;
+      }
+      else if (title.requiresActivityCount) {
+        unlocked = activityCount >= title.requiresActivityCount;
+      }
+      else if (title.requiresSpeed) {
+        // Check if user has completed 5km in under 25 minutes
+        const speedRuns = userActivities.filter(act => 
+          (act.distanceKm || 0) >= 5 && (act.durationMinutes || 999) <= 25
+        );
+        unlocked = speedRuns.length > 0;
+      }
+      else if (title.unlockLevel) {
         unlocked = (userProfile.level || 0) >= title.unlockLevel;
       }
 
-      console.log(`Title: ${title.name}, Required Level: ${title.unlockLevel}, User Level: ${userProfile.level}, Unlocked: ${unlocked}`);
+      console.log(`Title: ${title.name}, Unlocked: ${unlocked}`);
 
       return { ...title, unlocked, claimedBy };
     });
-  }, [userProfile, claimedMonarchs]);
+  }, [userProfile, claimedMonarchs, userActivities]);
 
   const handleTitlePress = (title) => {
     setSelectedTitleInfo(title);

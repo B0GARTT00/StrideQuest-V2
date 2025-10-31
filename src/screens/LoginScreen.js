@@ -21,6 +21,12 @@ export default function LoginScreen({ navigation }) {
   const confirmPasswordRef = useRef();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  
+  // Glitch effect states
+  const glitchOffset1 = useRef(new Animated.Value(0)).current;
+  const glitchOffset2 = useRef(new Animated.Value(0)).current;
+  const glitchOpacity = useRef(new Animated.Value(0)).current;
+  const [isGlitching, setIsGlitching] = useState(false);
 
   useEffect(() => {
     // Load saved preference and credentials
@@ -192,6 +198,86 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  // Glitch animation function
+  const triggerGlitch = () => {
+    setIsGlitching(true);
+    
+    Animated.sequence([
+      // First glitch
+      Animated.parallel([
+        Animated.timing(glitchOffset1, {
+          toValue: Math.random() > 0.5 ? 5 : -5,
+          duration: 120,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOffset2, {
+          toValue: Math.random() > 0.5 ? -8 : 8,
+          duration: 120,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOpacity, {
+          toValue: 0.8,
+          duration: 120,
+          useNativeDriver: true
+        })
+      ]),
+      // Reset
+      Animated.parallel([
+        Animated.timing(glitchOffset1, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOffset2, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOpacity, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true
+        })
+      ]),
+      // Second quick glitch
+      Animated.parallel([
+        Animated.timing(glitchOffset1, {
+          toValue: Math.random() > 0.5 ? -6 : 6,
+          duration: 80,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOffset2, {
+          toValue: Math.random() > 0.5 ? 7 : -7,
+          duration: 80,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOpacity, {
+          toValue: 0.6,
+          duration: 80,
+          useNativeDriver: true
+        })
+      ]),
+      // Final reset
+      Animated.parallel([
+        Animated.timing(glitchOffset1, {
+          toValue: 0,
+          duration: 80,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOffset2, {
+          toValue: 0,
+          duration: 80,
+          useNativeDriver: true
+        }),
+        Animated.timing(glitchOpacity, {
+          toValue: 0,
+          duration: 80,
+          useNativeDriver: true
+        })
+      ])
+    ]).start(() => setIsGlitching(false));
+  };
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -205,7 +291,18 @@ export default function LoginScreen({ navigation }) {
         useNativeDriver: true
       })
     ]).start();
-  }, []);
+
+    // Random glitch effect every 2-4 seconds
+    const glitchInterval = setInterval(() => {
+      if (!isGlitching) {
+        triggerGlitch();
+      }
+    }, Math.random() * 2000 + 2000); // Random between 2-4 seconds
+
+    return () => {
+      clearInterval(glitchInterval);
+    };
+  }, [isGlitching]);
 
   return (
     <KeyboardAvoidingView style={[styles.screen]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -215,7 +312,37 @@ export default function LoginScreen({ navigation }) {
       
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         <View style={styles.header}>
-          <Text style={styles.brand}>Stride Quest</Text>
+          <View style={styles.brandContainer}>
+            <Text style={styles.brand}>Stride Quest</Text>
+            {/* Glitch Layer 1 - Magenta channel offset */}
+            <Animated.Text 
+              style={[
+                styles.brand, 
+                styles.glitchLayer1,
+                { 
+                  transform: [{ translateX: glitchOffset1 }],
+                  opacity: glitchOpacity
+                }
+              ]}
+              pointerEvents="none"
+            >
+              Stride Quest
+            </Animated.Text>
+            {/* Glitch Layer 2 - Cyan channel offset */}
+            <Animated.Text 
+              style={[
+                styles.brand, 
+                styles.glitchLayer2,
+                { 
+                  transform: [{ translateX: glitchOffset2 }],
+                  opacity: glitchOpacity
+                }
+              ]}
+              pointerEvents="none"
+            >
+              Stride Quest
+            </Animated.Text>
+          </View>
           <Text style={styles.tag}>Arise with every step</Text>
           <View style={styles.divider} />
         </View>
@@ -408,6 +535,11 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     alignItems: 'center'
   },
+  brandContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   brand: {
     color: theme.colors.text,
     fontSize: 32,
@@ -416,6 +548,24 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(235, 186, 242, 0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8
+  },
+  glitchLayer1: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    color: '#ff00ff', // Magenta/Pink for RGB split effect
+    mixBlendMode: 'screen',
+    textShadowColor: 'transparent',
+  },
+  glitchLayer2: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    color: '#00ffff', // Cyan for RGB split effect
+    mixBlendMode: 'screen',
+    textShadowColor: 'transparent',
   },
   tag: { 
     color: theme.colors.muted, 

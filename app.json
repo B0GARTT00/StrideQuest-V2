@@ -4,10 +4,10 @@
     "slug": "stride-quest",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-bg.png",
       "resizeMode": "contain",
       "backgroundColor": "#0f0d12"
     },
@@ -24,7 +24,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#0f0d12"
       },
       "package": "com.stridequest.app",
@@ -32,16 +32,13 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
-        }
-      }
+        "FOREGROUND_SERVICE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo.png"
     },
     "plugins": [
       [
@@ -50,6 +47,11 @@
           "locationAlwaysAndWhenInUsePermission": "Allow Stride Quest to use your location to track your activities."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "97f40020-ea2c-43d5-aa89-41c62945d77c"
+      }
+    }
   }
 }

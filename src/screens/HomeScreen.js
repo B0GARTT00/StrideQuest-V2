@@ -275,9 +275,6 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Activities</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Activities')}>
-              <Text style={styles.sectionLink}>View All →</Text>
-            </TouchableOpacity>
           </View>
           
           <View style={styles.activitiesList}>
@@ -291,6 +288,11 @@ export default function HomeScreen({ navigation }) {
                   : (a.time || '');
                 const xp = a.xpEarned ?? a.xp ?? 0;
                 const dist = a.distanceKm ?? 0;
+                
+                // Check if it's an indoor activity (no distance tracked)
+                const isIndoor = ['yoga', 'treadmill', 'pushups'].includes(a.type?.toLowerCase());
+                const metaText = isIndoor ? duration : `${dist} km • ${duration}`;
+                
                 return (
                   <View key={a.id} style={styles.activityCard}>
                     <View style={styles.activityLeft}>
@@ -299,7 +301,7 @@ export default function HomeScreen({ navigation }) {
                       </View>
                       <View style={styles.activityInfo}>
                         <Text style={styles.activityType}>{a.type || 'Activity'}</Text>
-                        <Text style={styles.activityMeta}>{dist} km • {duration}</Text>
+                        <Text style={styles.activityMeta}>{metaText}</Text>
                       </View>
                     </View>
                     <View style={styles.activityRight}>
