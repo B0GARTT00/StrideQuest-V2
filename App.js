@@ -1,9 +1,11 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import TermsAgreementModal from './src/components/TermsAgreementModal';
 import { ThemeProvider } from './src/theme/ThemeProvider';
 import AppStateProvider, { AppContext } from './src/context/AppState';
 import TabNavigator from './src/navigation/TabNavigator';
@@ -63,6 +65,19 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     SoloLevel: require('./assets/Eternal.ttf'),
   });
+  const [showTerms, setShowTerms] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const agreed = await AsyncStorage.getItem('agreedToTerms');
+      if (!agreed) setShowTerms(true);
+    })();
+  }, []);
+
+  const handleAgree = async () => {
+    await AsyncStorage.setItem('agreedToTerms', 'true');
+    setShowTerms(false);
+  };
 
   if (!fontsLoaded) {
     // Return null while font loads
@@ -75,6 +90,7 @@ export default function App() {
         <ThemeProvider>
           <AppNavigator />
           <StatusBar style="light" />
+          <TermsAgreementModal visible={showTerms} onClose={handleAgree} reviewMode={false} />
         </ThemeProvider>
       </AppStateProvider>
     </SafeAreaProvider>

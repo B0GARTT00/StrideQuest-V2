@@ -10,6 +10,8 @@ import { AppContext } from '../context/AppState';
 import FirebaseService from '../services/FirebaseService';
 import { getTier } from '../utils/ranks';
 import FriendService from '../services/FriendService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import SettingsScreen from './SettingsScreen';
 
 export default function ProfileScreen({ navigation, route }) {
   // Ranks state
@@ -32,6 +34,8 @@ export default function ProfileScreen({ navigation, route }) {
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [friends, setFriends] = useState([]);
   const [friendsModalVisible, setFriendsModalVisible] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Check if already friends
   useEffect(() => {
@@ -668,55 +672,27 @@ export default function ProfileScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* Account Info (shows the viewed user's info) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
-          
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>
-                {viewingOwnProfile ? (currentUser?.email || 'Unknown') : 'Hidden'}
-              </Text>
-            </View>
-            <View style={styles.infoDivider} />
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>User ID</Text>
-              <Text style={styles.infoValue} numberOfLines={1}>
-                {userProfile?.id ? userProfile.id.substring(0, 12) + '...' : 'Unknown'}
-              </Text>
-            </View>
-            <View style={styles.infoDivider} />
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Account Type</Text>
-              <Text style={[styles.infoValue, { color: viewingOwnProfile ? theme.colors.gold : theme.colors.muted }]}>
-                {viewingOwnProfile ? 'Registered' : 'User'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
         {/* Actions (only for your own profile) */}
         {viewingOwnProfile && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Actions</Text>
-            
-            {currentUser ? (
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutButtonText}>Logout</Text>
-                <Text style={styles.logoutIcon}>→</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={styles.loginButton} 
-                onPress={() => navigation.navigate('Login')}
-              >
-                <Text style={styles.loginButtonText}>Login / Register</Text>
-                <Text style={styles.loginIcon}>→</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <TouchableOpacity style={styles.settingsCard} onPress={() => setShowSettings(true)}>
+            <Text style={styles.settingsCardText}>Open Settings</Text>
+          </TouchableOpacity>
         )}
+        <Modal visible={showSettings} animationType="slide" onRequestClose={() => setShowSettings(false)}>
+          <SettingsScreen
+            navigation={navigation}
+            onLogout={handleLogout}
+            accountInfo={{
+              name: currentUser?.displayName || userProfile?.name || '',
+              email: currentUser?.email || userProfile?.email || '',
+              id: currentUser?.uid || userProfile?.id || '',
+              type: 'Registered'
+            }}
+          />
+          <TouchableOpacity style={{position: 'absolute', top: 40, right: 20}} onPress={() => setShowSettings(false)}>
+            <Text style={{color: theme.colors.primary, fontWeight: 'bold', fontSize: 18}}>Close</Text>
+          </TouchableOpacity>
+        </Modal>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -1183,5 +1159,33 @@ const styles = StyleSheet.create({
   requestButtonText: {
     color: '#fff',
     fontWeight: '900'
+  },
+  settingsCard: {
+    width: '92%',
+    backgroundColor: '#1a0f2e',
+    borderColor: '#c77dff',
+    borderWidth: 3,
+    padding: 18,
+    borderRadius: 8,
+    alignItems: 'center',
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
+    marginVertical: 20,
+    alignSelf: 'center',
+  },
+  settingsCardText: {
+    color: '#e0aaff',
+    textAlign: 'center',
+    fontSize: 20,
+    marginBottom: 4,
+    fontFamily: 'SoloLevel',
+    letterSpacing: 4,
+    textShadowColor: '#c77dff',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+    fontWeight: 'bold',
   }
 });
