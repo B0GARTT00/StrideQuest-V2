@@ -9,7 +9,7 @@ export default function ActivitiesScreen({ navigation }) {
     {
       id: 'indoor',
       title: 'Indoor Activities',
-      subtitle: 'Yoga, Treadmill, HIIT',
+      subtitle: 'Yoga, Treadmill, Push ups',
       icon: 'home-outline',
       color: '#9b59b6',
       activities: '3 activities'

@@ -252,7 +252,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
               )}
             </View>
-            <Text style={styles.actionTitle}>{myGuild ? 'My Guild' : 'My Guild'}</Text>
+            <Text style={styles.actionTitle}>{myGuild ? 'My Club' : 'My Club'}</Text>
             <Text style={styles.actionSubtitle} numberOfLines={1}>
               {guildLoading ? 'Loading…' : myGuild ? `${myGuild.emblem} ${myGuild.name}` : 'Create or join now'}
             </Text>
@@ -266,8 +266,8 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.actionIconWrap}>
               <Text style={styles.actionIcon}>🔎</Text>
             </View>
-            <Text style={styles.actionTitle}>Guilds</Text>
-            <Text style={styles.actionSubtitle}>{discoverCount > 0 ? `${discoverCount} guilds to join` : 'Discover guilds'}</Text>
+            <Text style={styles.actionTitle}>Clubs</Text>
+            <Text style={styles.actionSubtitle}>{discoverCount > 0 ? `${discoverCount} clubs to join` : 'Discover clubs'}</Text>
           </TouchableOpacity>
         </View>
 

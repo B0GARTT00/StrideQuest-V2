@@ -62,7 +62,7 @@ export default function GuildChatScreen({ route, navigation }) {
 
   return (
     <View style={globalStyles.container}>
-      <Header title="Guild Chat" showBack onBack={() => navigation.goBack()} />
+      <Header title="Club Chat" showBack onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
           ref={listRef}
@@ -74,7 +74,7 @@ export default function GuildChatScreen({ route, navigation }) {
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder="Message your guild..."
+            placeholder="Message your club..."
             placeholderTextColor={theme.colors.muted}
             value={input}
             onChangeText={setInput}

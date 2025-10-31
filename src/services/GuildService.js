@@ -150,7 +150,7 @@ export const createGuild = async (guildData, creatorId) => {
       guildRole: 'leader'
     });
 
-    return { success: true, guildId, message: 'Guild created successfully!' };
+    return { success: true, guildId, message: 'Club created successfully!' };
   } catch (error) {
     console.error('Error creating guild:', error);
     return { success: false, message: error.message, error };
@@ -353,7 +353,7 @@ export const joinGuild = async (guildId, userId) => {
       guildRole: 'member'
     });
 
-    return { success: true, message: 'Successfully joined the guild!' };
+    return { success: true, message: 'Successfully joined the club!' };
   } catch (error) {
     console.error('Error joining guild:', error);
     return { success: false, message: error.message, error };
@@ -415,7 +415,7 @@ export const leaveGuild = async (guildId, userId) => {
       guildRole: null
     });
 
-    return { success: true, message: 'Successfully left the guild' };
+    return { success: true, message: 'Successfully left the club' };
   } catch (error) {
     console.error('Error leaving guild:', error);
     return { success: false, message: error.message, error };
@@ -466,7 +466,7 @@ export const disbandGuild = async (guildId, leaderId) => {
     // Finally, delete the guild document
     await deleteDoc(guildRef);
 
-    return { success: true, message: 'Guild disbanded successfully' };
+    return { success: true, message: 'Club disbanded successfully' };
   } catch (error) {
     console.error('Error disbanding guild:', error);
     return { success: false, message: error.message, error };

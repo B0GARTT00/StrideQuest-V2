@@ -8,7 +8,7 @@ import { AppContext } from '../context/AppState';
 import * as FirebaseService from '../services/FirebaseService';
 
 export default function QuestScreen({ navigation }) {
-  const { getCurrentUserId } = useContext(AppContext);
+  const { getCurrentUserId, loadUserData } = useContext(AppContext);
   const [quests, setQuests] = useState([]);
   const [userProgress, setUserProgress] = useState({});
   const [loading, setLoading] = useState(true);
@@ -64,6 +64,12 @@ export default function QuestScreen({ navigation }) {
     const result = await FirebaseService.claimQuestReward(userId, questId);
     if (result.success) {
       alert(`Claimed ${result.reward} XP!`);
+      
+      // Reload user data to update XP display
+      if (loadUserData) {
+        await loadUserData(userId);
+      }
+      
       loadQuests(); // Reload to update UI
     } else {
       alert(result.error || 'Failed to claim reward');

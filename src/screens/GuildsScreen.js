@@ -67,7 +67,7 @@ export default function GuildsScreen({ navigation }) {
 
   const handleCreateGuild = async () => {
     if (!guildName.trim()) {
-      Alert.alert('Error', 'Please enter a guild name');
+      Alert.alert('Error', 'Please enter a club name');
       return;
     }
 
@@ -102,8 +102,8 @@ export default function GuildsScreen({ navigation }) {
 
   const handleJoinGuild = async (guildId) => {
     Alert.alert(
-      'Join Guild',
-      'Are you sure you want to join this guild?',
+      'Join Club',
+      'Are you sure you want to join this club?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -129,8 +129,8 @@ export default function GuildsScreen({ navigation }) {
 
   const handleLeaveGuild = async () => {
     Alert.alert(
-      'Leave Guild',
-      'Are you sure you want to leave your guild?',
+      'Leave Club',
+      'Are you sure you want to leave your club?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -158,29 +158,29 @@ export default function GuildsScreen({ navigation }) {
 
   return (
     <View style={globalStyles.container}>
-      <Header title="Guilds" />
+      <Header title="Clubs" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Create section only when user has no guild */}
         {!myGuild && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Create Your Guild</Text>
+            <Text style={styles.sectionTitle}>Create Your Club</Text>
             <TouchableOpacity 
               style={styles.createGuildButton}
               onPress={() => setShowCreateModal(true)}
             >
-              <Text style={styles.createGuildButtonText}>+ Create New Guild</Text>
+              <Text style={styles.createGuildButtonText}>+ Create New Club</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* All Guilds Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Discover Guilds</Text>
+          <Text style={styles.sectionTitle}>Discover Clubs</Text>
           {loading ? (
             <ActivityIndicator size="large" color={theme.colors.accent} />
           ) : guilds.length === 0 ? (
-            <Text style={styles.emptyText}>No guilds yet. Be the first to create one!</Text>
+            <Text style={styles.emptyText}>No clubs yet. Be the first to create one!</Text>
           ) : (
             guilds.map((guild) => (
               <Card key={guild.id} style={styles.guildCard}>
@@ -238,12 +238,12 @@ export default function GuildsScreen({ navigation }) {
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                 >
-            <Text style={styles.modalTitle}>Create New Guild</Text>
+            <Text style={styles.modalTitle}>Create New Club</Text>
 
-            <Text style={styles.label}>Guild Name *</Text>
+            <Text style={styles.label}>Club Name *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter guild name..."
+              placeholder="Enter club name..."
               placeholderTextColor={theme.colors.muted}
               value={guildName}
               onChangeText={setGuildName}
@@ -255,7 +255,7 @@ export default function GuildsScreen({ navigation }) {
             <Text style={styles.label}>Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Describe your guild..."
+              placeholder="Describe your club..."
               placeholderTextColor={theme.colors.muted}
               value={guildDescription}
               onChangeText={setGuildDescription}
@@ -296,7 +296,7 @@ export default function GuildsScreen({ navigation }) {
                 {creating ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.createButtonText}>Create Guild</Text>
+                  <Text style={styles.createButtonText}>Create Club</Text>
                 )}
               </TouchableOpacity>
             </View>

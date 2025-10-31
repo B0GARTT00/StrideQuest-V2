@@ -70,7 +70,7 @@ export default function GuildDetailScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={globalStyles.container}>
-        <Header title="Guild Details" showBack onBack={() => navigation.goBack()} />
+        <Header title="Club Details" showBack onBack={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.accent} />
         </View>
@@ -81,9 +81,9 @@ export default function GuildDetailScreen({ route, navigation }) {
   if (!guild) {
     return (
       <View style={globalStyles.container}>
-        <Header title="Guild Details" showBack onBack={() => navigation.goBack()} />
+        <Header title="Club Details" showBack onBack={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Guild not found</Text>
+          <Text style={styles.errorText}>Club not found</Text>
         </View>
       </View>
     );
@@ -132,7 +132,7 @@ export default function GuildDetailScreen({ route, navigation }) {
         {/* Chat CTA + Actions */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.chatButton} onPress={() => navigation.navigate('GuildChat', { guildId })}>
-            <Text style={styles.chatButtonText}>Open Guild Chat</Text>
+            <Text style={styles.chatButtonText}>Open Club Chat</Text>
           </TouchableOpacity>
 
           {/* Guild Actions */}
@@ -141,48 +141,48 @@ export default function GuildDetailScreen({ route, navigation }) {
               style={[styles.dangerButton, { marginTop: 12 }]}
               onPress={() => {
                 Alert.alert(
-                  'Leave Guild',
-                  'Are you sure you want to leave this guild?',
+                  'Leave Club',
+                  'Are you sure you want to leave this club?',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Leave', style: 'destructive', onPress: async () => {
                       const res = await GuildService.leaveGuild(guildId, getCurrentUserId);
                       if (res.success) {
-                        Alert.alert('Left Guild', 'You have left the guild.');
+                        Alert.alert('Left Club', 'You have left the club.');
                         navigation.navigate('Guilds');
                       } else {
-                        Alert.alert('Error', res.message || 'Failed to leave guild');
+                        Alert.alert('Error', res.message || 'Failed to leave club');
                       }
                     }}
                   ]
                 );
               }}
             >
-              <Text style={styles.dangerText}>Leave Guild</Text>
+              <Text style={styles.dangerText}>Leave Club</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={[styles.dangerButton, { marginTop: 12, borderColor: '#ff4d4f', backgroundColor: 'rgba(255,77,79,0.15)' }]}
               onPress={() => {
                 Alert.alert(
-                  'Disband Guild',
-                  'This will remove all members and delete the guild. This action cannot be undone. Proceed?',
+                  'Disband Club',
+                  'This will remove all members and delete the club. This action cannot be undone. Proceed?',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Disband', style: 'destructive', onPress: async () => {
                       const res = await GuildService.disbandGuild(guildId, getCurrentUserId);
                       if (res.success) {
-                        Alert.alert('Guild Disbanded', 'The guild has been deleted.');
+                        Alert.alert('Club Disbanded', 'The club has been deleted.');
                         navigation.navigate('Guilds');
                       } else {
-                        Alert.alert('Error', res.message || 'Failed to disband guild');
+                        Alert.alert('Error', res.message || 'Failed to disband club');
                       }
                     }}
                   ]
                 );
               }}
             >
-              <Text style={styles.dangerText}>Disband Guild</Text>
+              <Text style={styles.dangerText}>Disband Club</Text>
             </TouchableOpacity>
           )}
         </View>

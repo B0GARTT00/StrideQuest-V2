@@ -32,14 +32,14 @@ const indoor = [
   },
   { 
     id: 'i3', 
-    title: 'HIIT', 
-    subtitle: 'High intensity training', 
-    type: 'hiit',
-    xp: 50,
-    icon: 'lightning-bolt-outline',
+    title: 'Push ups', 
+    subtitle: 'Upper body strength', 
+    type: 'pushups',
+    xp: 30,
+    icon: 'arm-flex-outline',
     iconType: 'MaterialCommunityIcons',
     color: '#ffb86b',
-    difficulty: 'Advanced'
+    difficulty: 'Beginner'
   }
 ];
 
@@ -101,8 +101,7 @@ export default function ActivityCategoryScreen({ route, navigation }) {
   const handleSelect = async (item) => {
     if (item.type === 'run') {
       navigation.navigate('MapActivity', { preset: item });
-    } else if (item.type === 'yoga') {
-      // Navigate to timer screen for yoga
+    } else if (item.type === 'yoga' || item.type === 'pushups' || item.type === 'treadmill') {
       navigation.navigate('TimerActivity', { preset: item });
     } else {
       // Save activity to Firebase
@@ -113,13 +112,11 @@ export default function ActivityCategoryScreen({ route, navigation }) {
             type: item.type,
             xpEarned: item.xp
           });
-          
           if (result.success) {
             // Reload user data to update profile
             if (loadUserData) {
               await loadUserData(userId);
             }
-            
             // Check if leveled up
             if (result.leveledUp) {
               Alert.alert(
