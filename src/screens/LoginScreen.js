@@ -5,6 +5,7 @@ import { theme, globalStyles } from '../theme/ThemeProvider';
 import { auth } from '../config/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import FirebaseService from '../services/FirebaseService';
+import getAppVersion from '../utils/getAppVersion';
 
 export default function LoginScreen({ navigation }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -15,6 +16,7 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(null);
+  const appVersion = getAppVersion();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const passwordRef = useRef();
@@ -484,6 +486,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* Guest access removed - users must log in or register */}
+          <Text style={styles.versionText}>App Version: {appVersion}</Text>
         </View>
       </Animated.View>
     </KeyboardAvoidingView>
@@ -776,5 +779,13 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     flex: 1,
     fontSize: 13
+  }
+  ,
+  versionText: {
+    color: '#c77dff',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 18,
+    letterSpacing: 1,
   }
 });

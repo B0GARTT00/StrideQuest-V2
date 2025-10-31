@@ -1,10 +1,43 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import TermsAgreementModal from '../components/TermsAgreementModal';
+import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { theme } from '../theme/ThemeProvider';
+
+import { deleteAccount } from '../services/FirebaseService';
+import { Alert } from 'react-native';
+
+import getAppVersion from '../utils/getAppVersion';
 
 export default function SettingsScreen({ navigation, onLogout, accountInfo }) {
   const [showTerms, setShowTerms] = React.useState(false);
+  const [showPrivacy, setShowPrivacy] = React.useState(false);
+
+  const appVersion = getAppVersion();
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!accountInfo?.id) return;
+            const result = await deleteAccount(accountInfo.id);
+            if (result.success) {
+              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              onLogout && onLogout();
+            } else {
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -34,12 +67,20 @@ export default function SettingsScreen({ navigation, onLogout, accountInfo }) {
         <TouchableOpacity onPress={() => setShowTerms(true)} style={styles.button}>
           <Text style={styles.buttonText}>View Terms & Agreement</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => setShowPrivacy(true)} style={[styles.button, { backgroundColor: '#6c47a6' }]}> 
+          <Text style={styles.buttonText}>View Privacy Policy</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={onLogout} style={[styles.button, styles.logoutButton]}> 
           <Text style={[styles.buttonText, { color: '#fff' }]}>Logout</Text>
         </TouchableOpacity>
+          <TouchableOpacity onPress={handleDeleteAccount} style={[styles.button, { backgroundColor: '#ff3b3b' }]}> 
+            <Text style={[styles.buttonText, { color: '#fff' }]}>Delete Account</Text>
+          </TouchableOpacity>
       </View>
 
       <TermsAgreementModal visible={showTerms} onClose={() => setShowTerms(false)} reviewMode={true} />
+      <PrivacyPolicyModal visible={showPrivacy} onClose={() => setShowPrivacy(false)} />
+        <Text style={styles.versionText}>App Version: {appVersion}</Text>
     </View>
   );
 }
@@ -115,4 +156,11 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: '#ff6b6b',
   },
+    versionText: {
+      color: '#c77dff',
+      fontSize: 13,
+      textAlign: 'center',
+      marginTop: 18,
+      letterSpacing: 1,
+    },
 });

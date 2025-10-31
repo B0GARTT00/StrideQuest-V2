@@ -94,6 +94,41 @@ export const calculateTotalXPForLevel = (targetLevel) => {
 // ========== USER OPERATIONS ==========
 
 /**
+ * Delete user account and all related data
+ */
+export const deleteAccount = async (userId) => {
+  try {
+    // Delete user profile
+    await deleteDoc(doc(db, 'users', userId));
+
+    // Delete user activities
+    const activitiesRef = collection(db, 'activities');
+    const activitiesSnap = await getDocs(query(activitiesRef, where('userId', '==', userId)));
+    const activityDeletes = [];
+    activitiesSnap.forEach((docSnap) => {
+      activityDeletes.push(deleteDoc(doc(db, 'activities', docSnap.id)));
+    });
+    await Promise.all(activityDeletes);
+
+    // Delete user quest progress
+    const progressRef = collection(db, 'userQuests');
+    const progressSnap = await getDocs(query(progressRef, where('userId', '==', userId)));
+    const progressDeletes = [];
+    progressSnap.forEach((docSnap) => {
+      progressDeletes.push(deleteDoc(doc(db, 'userQuests', docSnap.id)));
+    });
+    await Promise.all(progressDeletes);
+
+    // TODO: Delete from leaderboard, friends, guilds, chats if needed
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return { success: false, error };
+  }
+};
+
+/**
  * Create or update user profile
  */
 export const saveUser = async (userId, userData) => {

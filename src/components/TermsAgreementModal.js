@@ -1,28 +1,94 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 
+import getAppVersion from '../utils/getAppVersion';
+
 const TERMS_TEXT = `
-Stride Quest Terms & Agreement
+Terms and Agreement
 
-1. Acceptance of Terms
-By using this app, you agree to abide by all rules and policies outlined herein.
+Last Updated: October 31, 2025
 
-2. User Conduct
-You agree not to misuse the app or engage in prohibited activities.
+Welcome!
 
-3. Privacy
-Your data is handled according to our privacy policy.
+This document explains the rules, your rights, and our responsibilities. Please read it carefully. By using Stride Quest, you agree to these terms. If you have questions, contact us anytime.
 
-4. Liability
-Stride Quest is not liable for any damages resulting from app usage.
+**Quick Summary:**
+- You must be at least 13 years old to use Stride Quest.
+- Respect others and use the app safely and honestly.
+- Your data is protected and never sold.
+- You can delete your account or data at any time.
+- We may update these terms; you’ll be notified of major changes.
 
-5. Changes
-Terms may be updated. Continued use means acceptance of changes.
+---
 
-For full details, contact support.
+1. **What is Stride Quest?**
+Stride Quest is a social fitness app that helps you track workouts, earn XP, join guilds, and chat with friends. We encourage healthy activity and positive community engagement.
+
+2. **Who Can Use Stride Quest?**
+- You must be 13 or older.
+- If you’re under 18, get permission from a parent or guardian.
+- Use real information when creating your account.
+
+3. **Your Account & Security**
+- Keep your password safe and don’t share your account.
+- Let us know if you notice suspicious activity.
+- We’re not responsible for losses if you don’t secure your account.
+
+4. **How to Use Stride Quest**
+- Be kind and respectful in chats and groups.
+- Don’t post harmful, offensive, or illegal content.
+- Don’t cheat, hack, or use bots.
+- Breaking these rules may result in suspension or ban.
+
+5. **Fitness Disclaimer**
+- Stride Quest is for motivation and tracking only.
+- It’s not medical advice. Talk to your doctor before starting new exercise routines.
+- You’re responsible for your own health and safety.
+
+6. **Your Data & Privacy**
+- We collect only what’s needed: profile info, activity stats, and chat messages.
+- Your data is stored securely and never sold.
+- See our Privacy Policy in Settings for details.
+
+7. **Intellectual Property**
+- All app content belongs to us or our partners.
+- Don’t copy, modify, or distribute the app without permission.
+- You own your profile and messages, but we can display them in the app.
+
+8. **Community Guidelines**
+- Respect others. No bullying, harassment, or sharing private info.
+- We may monitor chats for safety.
+- Repeated violations may result in suspension.
+
+9. **Ending Your Account**
+- We can suspend or terminate accounts for rule violations or if the app changes.
+- You can delete your account anytime in Settings.
+
+10. **Updates to These Terms**
+- We may update these terms. Major changes will be announced in the app.
+- Continued use means you accept the new terms.
+
+11. **Limitation of Liability**
+- We provide Stride Quest “as is.”
+- We’re not liable for injuries, data loss, or technical issues.
+- Use the app at your own risk.
+
+12. **Contact Us**
+- For questions or help, contact us at:
+  📧 lamigokyle@gmail.com
+  📧 chesedhmorales@gmail.com
+  📍 Developers: Kyle Lamigo and Chesedh Morales
+
+13. **Your Acceptance**
+- By tapping “Confirm” or using Stride Quest, you confirm you’ve read and accepted these terms.
+
+---
+
+Thank you for being part of Stride Quest! Stay active, stay safe, and enjoy the journey.
 `;
 
 export default function TermsAgreementModal({ visible, onClose, reviewMode }) {
+  const appVersion = getAppVersion();
   return (
     <Modal visible={visible} animationType="slide" transparent={true}>
       <View style={styles.overlay}>
@@ -36,6 +102,7 @@ export default function TermsAgreementModal({ visible, onClose, reviewMode }) {
           <ScrollView style={styles.scroll}>
             <Text style={styles.text}>{TERMS_TEXT}</Text>
           </ScrollView>
+          <Text style={styles.versionText}>App Version: {appVersion}</Text>
           <TouchableOpacity style={[styles.button, reviewMode ? styles.buttonSecondary : null]} onPress={onClose}>
             <Text style={styles.buttonText}>{reviewMode ? 'Close' : 'Agree & Continue'}</Text>
           </TouchableOpacity>
@@ -111,4 +178,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+    versionText: {
+      color: '#c77dff',
+      fontSize: 13,
+      textAlign: 'center',
+      marginBottom: 6,
+      marginTop: 2,
+      letterSpacing: 1,
+    },
 });
