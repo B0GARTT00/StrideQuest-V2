@@ -256,29 +256,40 @@ export default function MapActivityScreen({ navigation, route }) {
     <View style={styles.container}>
       {/* Map View */}
       <View style={styles.mapWrap}>
-        <MapView
-          style={styles.map}
-          showsUserLocation
-          followsUserLocation
-          region={location ? {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta: 0.005,
-            longitudeDelta: 0.005,
-          } : undefined}
-        >
-          {/* Removed UrlTile - using native map provider (Google Maps on Android, Apple Maps on iOS) for better reliability */}
-          {routePath.length > 1 && (
-              <Polyline
-                coordinates={routePath}
-                strokeColor={'#8e44ad'} // Violet color
-                strokeWidth={6}
-              />
-          )}
-          {routePath.length > 0 && (
-            <Marker coordinate={routePath[0]} title="Start" pinColor={theme.colors.gold} />
-          )}
-        </MapView>
+        {location ? (
+          <MapView
+            style={styles.map}
+            showsUserLocation
+            followsUserLocation
+            onError={(e) => {
+              console.error('Map error:', e?.nativeEvent?.errorMessage || e);
+              Alert.alert('Map Error', 'There was a problem initializing the map.');
+            }}
+            region={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+              latitudeDelta: 0.005,
+              longitudeDelta: 0.005,
+            }}
+          >
+            {/* Removed UrlTile - using native map provider (Google Maps on Android, Apple Maps on iOS) for better reliability */}
+            {routePath.length > 1 && (
+                <Polyline
+                  coordinates={routePath}
+                  strokeColor={'#8e44ad'} // Violet color
+                  strokeWidth={6}
+                />
+            )}
+            {routePath.length > 0 && (
+              <Marker coordinate={routePath[0]} title="Start" pinColor={theme.colors.gold} />
+            )}
+          </MapView>
+        ) : (
+          <View style={[styles.map, { alignItems: 'center', justifyContent: 'center' }]}> 
+            <ActivityIndicator size="large" color={theme.colors.accent} />
+            <Text style={{ color: theme.colors.muted, marginTop: 8 }}>Getting your location…</Text>
+          </View>
+        )}
 
         {/* Top Stats Overlay */}
         <View style={styles.topOverlay}>

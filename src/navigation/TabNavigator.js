@@ -5,6 +5,7 @@ import HomeScreen from '../screens/HomeScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ActivityCategoryScreen from '../screens/ActivityCategoryScreen';
 import MapActivityScreen from '../screens/MapActivityScreen';
+import LeafletMapActivityScreen from '../screens/LeafletMapActivityScreen';
 import TimerActivityScreen from '../screens/TimerActivityScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import WorldChatScreen from '../screens/WorldChatScreen';
@@ -29,6 +30,7 @@ function ActivitiesNavigator() {
       <ActivitiesStack.Screen name="ActivityCategory" component={ActivityCategoryScreen} />
       {/* Register activity execution screens here so navigation from category works in release builds */}
       <ActivitiesStack.Screen name="MapActivity" component={MapActivityScreen} />
+      <ActivitiesStack.Screen name="LeafletMapActivity" component={LeafletMapActivityScreen} />
       <ActivitiesStack.Screen name="TimerActivity" component={TimerActivityScreen} />
     </ActivitiesStack.Navigator>
   );
