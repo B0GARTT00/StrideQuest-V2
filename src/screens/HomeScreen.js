@@ -7,6 +7,7 @@ import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
 import GuildService from '../services/GuildService';
+import * as ChatService from '../services/ChatService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Recent activities will be loaded from Firestore in real-time
@@ -42,9 +43,14 @@ export default function HomeScreen({ navigation }) {
   const [open, setOpen] = useState(false);
   const [myGuild, setMyGuild] = useState(null);
   const [guildLoading, setGuildLoading] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [guildUnreadCount, setGuildUnreadCount] = useState(0);
+  const [privateUnreadCount, setPrivateUnreadCount] = useState(0);
   const [discoverCount, setDiscoverCount] = useState(0);
   const insets = useSafeAreaInsets();
+  const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Total unread count = guild + private messages
+  const totalUnreadCount = guildUnreadCount + privateUnreadCount;
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -96,12 +102,12 @@ export default function HomeScreen({ navigation }) {
 
   // Load My Guild summary for quick action and subscribe to unread count
   useEffect(() => {
-    let unsubUnread = null;
+    let unsubGuildUnread = null;
     let mounted = true;
     const load = async () => {
       if (!me?.guildId) {
         setMyGuild(null);
-        setUnreadCount(0);
+        setGuildUnreadCount(0);
         return;
       }
       try {
@@ -110,14 +116,16 @@ export default function HomeScreen({ navigation }) {
         if (mounted) {
           setMyGuild(res.success ? res.data : null);
         }
-        // Subscribe to unread count in real-time
-        unsubUnread = GuildService.subscribeGuildUnread(me.guildId, me.id, (count) => {
-          if (mounted) setUnreadCount(count);
+        // Subscribe to guild unread count in real-time
+        unsubGuildUnread = GuildService.subscribeGuildUnread(me.guildId, me.id, (count) => {
+          if (mounted) {
+            setGuildUnreadCount(count);
+          }
         });
       } catch (e) {
         if (mounted) {
           setMyGuild(null);
-          setUnreadCount(0);
+          setGuildUnreadCount(0);
         }
       } finally {
         if (mounted) setGuildLoading(false);
@@ -142,9 +150,30 @@ export default function HomeScreen({ navigation }) {
     loadDiscover();
     return () => {
       mounted = false;
-      if (unsubUnread) unsubUnread();
+      if (unsubGuildUnread) unsubGuildUnread();
     };
   }, [me?.guildId]);
+
+  // Subscribe to private message unread count
+  useEffect(() => {
+    let unsubPrivateUnread = null;
+    let mounted = true;
+    
+    if (me?.id) {
+      unsubPrivateUnread = ChatService.subscribePrivateUnreadCount(me.id, (count) => {
+        if (mounted) {
+          setPrivateUnreadCount(count);
+        }
+      });
+    } else {
+      setPrivateUnreadCount(0);
+    }
+    
+    return () => {
+      mounted = false;
+      if (unsubPrivateUnread) unsubPrivateUnread();
+    };
+  }, [me?.id]);
 
   // Subscribe to current user's recent activities in real-time
   useEffect(() => {
@@ -185,7 +214,13 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={globalStyles.container}>
-      <Header title="" showTitle={false} />
+      <Header 
+        title="" 
+        showTitle={false} 
+        showBell={true} 
+        unreadCount={totalUnreadCount}
+        onPressBell={() => setShowNotifications(true)}
+      />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 + insets.bottom }} showsVerticalScrollIndicator={false}>
         {/* Hero Status Card */}
@@ -248,9 +283,9 @@ export default function HomeScreen({ navigation }) {
           >
             <View style={styles.actionIconWrap}>
               <Text style={styles.actionIcon}>👥</Text>
-              {unreadCount > 0 && (
+              {guildUnreadCount > 0 && (
                 <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  <Text style={styles.unreadText}>{guildUnreadCount > 99 ? '99+' : guildUnreadCount}</Text>
                 </View>
               )}
             </View>
@@ -378,6 +413,90 @@ export default function HomeScreen({ navigation }) {
               userId: me.id
             }} 
           />
+        </View>
+      </Modal>
+
+      {/* Notifications Modal */}
+      <Modal transparent={true} visible={showNotifications} animationType="slide" onRequestClose={() => setShowNotifications(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: theme.colors.dark, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '70%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>Notifications</Text>
+              <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                <Text style={{ color: theme.colors.accent, fontSize: 16, fontWeight: '700' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {guildUnreadCount > 0 && (
+                <TouchableOpacity 
+                  style={{ 
+                    backgroundColor: '#0f0d12', 
+                    borderRadius: 12, 
+                    padding: 16, 
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.06)'
+                  }}
+                  onPress={() => {
+                    setShowNotifications(false);
+                    if (myGuild) navigation.navigate('GuildDetail', { guildId: myGuild.id });
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 24, marginRight: 12 }}>💬</Text>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800', flex: 1 }}>
+                      Guild Messages
+                    </Text>
+                    <View style={{ backgroundColor: '#f44336', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>{guildUnreadCount}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                    You have {guildUnreadCount} unread message{guildUnreadCount !== 1 ? 's' : ''} in your guild chat
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {privateUnreadCount > 0 && (
+                <TouchableOpacity 
+                  style={{ 
+                    backgroundColor: '#0f0d12', 
+                    borderRadius: 12, 
+                    padding: 16, 
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.06)'
+                  }}
+                  onPress={() => {
+                    setShowNotifications(false);
+                    // Navigate to a direct messages screen (to be implemented)
+                    // navigation.navigate('DirectMessages');
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 24, marginRight: 12 }}>✉️</Text>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800', flex: 1 }}>
+                      Private Messages
+                    </Text>
+                    <View style={{ backgroundColor: '#f44336', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>{privateUnreadCount}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                    You have {privateUnreadCount} unread private message{privateUnreadCount !== 1 ? 's' : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              
+              {totalUnreadCount === 0 && (
+                <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                  <Text style={{ fontSize: 48, marginBottom: 12 }}>🔔</Text>
+                  <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>No notifications</Text>
+                  <Text style={{ color: theme.colors.muted, fontSize: 13, marginTop: 4 }}>You're all caught up!</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </View>

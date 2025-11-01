@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Alert, Modal, ActivityIndicator } from 'react-native';
-import MapView, { Polyline, Marker, UrlTile } from 'react-native-maps';
+import MapView, { Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { theme } from '../theme/ThemeProvider';
 import { AppContext } from '../context/AppState';
@@ -267,11 +267,7 @@ export default function MapActivityScreen({ navigation, route }) {
             longitudeDelta: 0.005,
           } : undefined}
         >
-          <UrlTile
-            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maximumZ={19}
-            flipY={false}
-          />
+          {/* Removed UrlTile - using native map provider (Google Maps on Android, Apple Maps on iOS) for better reliability */}
           {routePath.length > 1 && (
               <Polyline
                 coordinates={routePath}

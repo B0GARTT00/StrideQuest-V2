@@ -20,6 +20,10 @@ export default function DirectChatScreen({ route, navigation }) {
       setMessages(msgs);
       setTimeout(() => listRef.current?.scrollToEnd?.({ animated: true }), 50);
     });
+    
+    // Mark messages as read when the chat is opened
+    ChatService.markPrivateChatAsRead(me.id, otherUserId, me.id);
+    
     return () => unsub && unsub();
   }, [me?.id, otherUserId]);
 
