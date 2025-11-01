@@ -5,6 +5,7 @@ import * as Location from 'expo-location';
 import { theme } from '../theme/ThemeProvider';
 import { AppContext } from '../context/AppState';
 import * as FirebaseService from '../services/FirebaseService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Haversine formula to calculate distance between two lat/lng points in meters
 function haversineDistance(coord1, coord2) {
@@ -25,6 +26,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function MapActivityScreen({ navigation, route }) {
   const { getCurrentUserId, loadUserData } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
   const activityType = route?.params?.preset?.type || 'run';
   
   const [location, setLocation] = useState(null);
@@ -304,8 +306,8 @@ export default function MapActivityScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Bottom Control Panel */}
-      <View style={styles.controlPanel}>
+  {/* Bottom Control Panel */}
+  <View style={[styles.controlPanel, { paddingBottom: 20 + insets.bottom }]}>
         <View style={styles.activityHeader}>
           <Text style={styles.activityEmoji}>{getActivityEmoji()}</Text>
           <Text style={styles.activityTitle}>{activityType.charAt(0).toUpperCase() + activityType.slice(1)}</Text>

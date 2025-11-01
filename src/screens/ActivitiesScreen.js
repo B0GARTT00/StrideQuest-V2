@@ -3,8 +3,10 @@ import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-nati
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ActivitiesScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const categories = [
     {
       id: 'indoor',
@@ -29,7 +31,7 @@ export default function ActivitiesScreen({ navigation }) {
       <Header title="Activities" />
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.pageTitle}>Choose Your Activity</Text>

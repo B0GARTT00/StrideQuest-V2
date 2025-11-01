@@ -4,6 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ActivityCategoryScreen from '../screens/ActivityCategoryScreen';
+import MapActivityScreen from '../screens/MapActivityScreen';
+import TimerActivityScreen from '../screens/TimerActivityScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import WorldChatScreen from '../screens/WorldChatScreen';
 import QuestScreen from '../screens/QuestScreen';
@@ -13,8 +15,9 @@ import TitlesScreen from '../screens/TitlesScreen';
 import { theme } from '../theme/ThemeProvider';
 import GuildService from '../services/GuildService';
 import { AppContext } from '../context/AppState';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();
 const ActivitiesStack = createNativeStackNavigator();
@@ -24,6 +27,9 @@ function ActivitiesNavigator() {
     <ActivitiesStack.Navigator screenOptions={{ headerShown: false }}>
       <ActivitiesStack.Screen name="ActivitiesList" component={ActivitiesScreen} />
       <ActivitiesStack.Screen name="ActivityCategory" component={ActivityCategoryScreen} />
+      {/* Register activity execution screens here so navigation from category works in release builds */}
+      <ActivitiesStack.Screen name="MapActivity" component={MapActivityScreen} />
+      <ActivitiesStack.Screen name="TimerActivity" component={TimerActivityScreen} />
     </ActivitiesStack.Navigator>
   );
 }
@@ -32,12 +38,16 @@ export default function TabNavigator() {
   const { getCurrentUserProfile } = useContext(AppContext);
   const me = getCurrentUserProfile;
   const [guildUnread, setGuildUnread] = useState(0);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!me?.id || !me?.guildId) return;
     const unsub = GuildService.subscribeGuildUnread(me.guildId, me.id, setGuildUnread);
     return () => unsub && unsub();
   }, [me?.id, me?.guildId]);
+
+  // Calculate dynamic tab bar height to accommodate bottom safe area (nav buttons/gestures)
+  const tabBarHeight = 72 + insets.bottom;
 
   return (
     <Tab.Navigator
@@ -51,8 +61,8 @@ export default function TabNavigator() {
         right: 0,
         bottom: 0,
         backgroundColor: theme.colors.dark,
-        height: 72,
-        paddingBottom: 10,
+        height: tabBarHeight,
+        paddingBottom: Math.max(insets.bottom, 10),
         paddingTop: 8,
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,

@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import FirebaseService from '../services/FirebaseService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AVAILABLE_TITLES = [
   { 
@@ -314,6 +315,7 @@ export default function TitlesScreen({ navigation }) {
   const [selectedTitleInfo, setSelectedTitleInfo] = useState(null);
   const [userActivities, setUserActivities] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   console.log('TitlesScreen - userProfile:', userProfile);
   console.log('TitlesScreen - getCurrentUserProfile:', getCurrentUserProfile);
@@ -497,7 +499,7 @@ export default function TitlesScreen({ navigation }) {
     <View style={globalStyles.container}>
       <Header title="Titles" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
         {/* Current Title Card */}
         <View style={styles.currentTitleSection}>
           <Text style={styles.sectionTitle}>Current Title</Text>

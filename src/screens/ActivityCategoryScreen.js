@@ -6,6 +6,7 @@ import ActivityIcon from '../components/ActivityIcon';
 import { AppContext } from '../context/AppState';
 import FirebaseService from '../services/FirebaseService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const indoor = [
   { 
@@ -93,6 +94,7 @@ const outdoor = [
 export default function ActivityCategoryScreen({ route, navigation }) {
   const { category } = route.params || { category: 'Outdoor' };
   const { getCurrentUserId, loadUserData } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
 
   const list = category === 'Indoor' ? indoor : outdoor;
   const categoryColor = category === 'Indoor' ? '#9b59b6' : '#4a90e2';
@@ -160,7 +162,7 @@ export default function ActivityCategoryScreen({ route, navigation }) {
       <Header title={category} />
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Category Header */}

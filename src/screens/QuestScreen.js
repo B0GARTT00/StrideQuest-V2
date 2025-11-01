@@ -6,12 +6,14 @@ import { globalStyles } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import { AppContext } from '../context/AppState';
 import * as FirebaseService from '../services/FirebaseService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function QuestScreen({ navigation }) {
   const { getCurrentUserId, loadUserData } = useContext(AppContext);
   const [quests, setQuests] = useState([]);
   const [userProgress, setUserProgress] = useState({});
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     loadQuests();
@@ -200,7 +202,7 @@ export default function QuestScreen({ navigation }) {
       
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Stats Header */}

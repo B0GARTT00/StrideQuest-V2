@@ -12,8 +12,10 @@ import { getTier } from '../utils/ranks';
 import FriendService from '../services/FriendService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SettingsScreen from './SettingsScreen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen({ navigation, route }) {
+  const insets = useSafeAreaInsets();
   // Ranks state
   const [globalRank, setGlobalRank] = useState(null);
   const [tierRank, setTierRank] = useState(null);
@@ -382,7 +384,7 @@ export default function ProfileScreen({ navigation, route }) {
     <View style={globalStyles.container}>
       <Header title="Profile" />
       
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
         {/* Profile Header Card */}
         <View style={styles.profileCard}>
           <View style={[styles.profileGlow, { backgroundColor: tier.color, opacity: 0.1 }]} />

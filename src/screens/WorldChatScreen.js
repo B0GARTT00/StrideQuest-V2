@@ -4,6 +4,7 @@ import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import { AppContext } from '../context/AppState';
 import * as ChatService from '../services/ChatService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorldChatScreen() {
   const { currentUser, getCurrentUserProfile } = useContext(AppContext);
@@ -12,6 +13,7 @@ export default function WorldChatScreen() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const listRef = useRef(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const unsub = ChatService.subscribeWorldChat(setMessages);
@@ -45,7 +47,7 @@ export default function WorldChatScreen() {
         <FlatList
           ref={listRef}
           style={{ flex: 1 }}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: 100 + insets.bottom }]}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}

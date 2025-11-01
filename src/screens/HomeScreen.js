@@ -7,6 +7,7 @@ import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
 import GuildService from '../services/GuildService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Recent activities will be loaded from Firestore in real-time
 
@@ -43,6 +44,7 @@ export default function HomeScreen({ navigation }) {
   const [guildLoading, setGuildLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [discoverCount, setDiscoverCount] = useState(0);
+  const insets = useSafeAreaInsets();
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -185,7 +187,7 @@ export default function HomeScreen({ navigation }) {
     <View style={globalStyles.container}>
       <Header title="" showTitle={false} />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 + insets.bottom }} showsVerticalScrollIndicator={false}>
         {/* Hero Status Card */}
         <TouchableOpacity onPress={() => setOpen(true)} activeOpacity={0.9} style={styles.heroCard}>
           <View style={[styles.heroGlow, { backgroundColor: tier.color, opacity: 0.08 }]} />

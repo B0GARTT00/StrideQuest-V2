@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import BadgeIcon from '../components/BadgeIcon';
 import { getTier, TIERS_ORDER } from '../utils/ranks';
 import LeaderboardService from '../services/LeaderboardService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Enable LayoutAnimation for Android (only if not using new architecture)
 if (
@@ -193,6 +194,7 @@ const AnimatedTier = ({ tierData, sorted, isExpanded, onToggle, tierColor, navig
 
 export default function LeaderboardScreen({ navigation }) {
   const { state, getCurrentUserId } = useContext(AppContext);
+  const insets = useSafeAreaInsets();
   const sorted = useMemo(() => {
     if (!state.users || !Array.isArray(state.users)) return [];
     return [...state.users].sort((a, b) => b.xp - a.xp);
@@ -250,7 +252,7 @@ export default function LeaderboardScreen({ navigation }) {
     <View style={globalStyles.container}>
       <Header title="Leaderboard" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}>
         {/* Top 3 podium */}
         <View style={styles.podiumSection}>
           <Text style={styles.sectionTitle}>Top Athletes</Text>
@@ -331,7 +333,7 @@ export default function LeaderboardScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: 40
+    paddingBottom: 100
   },
   
   // Section styles
