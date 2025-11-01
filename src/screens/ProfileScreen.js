@@ -1,6 +1,6 @@
 import { getUserRanks } from '../services/RankService';
 import React, { useContext, useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator, FlatList, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image, ActivityIndicator, FlatList, Modal, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
@@ -13,8 +13,34 @@ import FriendService from '../services/FriendService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SettingsScreen from './SettingsScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function ProfileScreen({ navigation, route }) {
+  // Username change modal state
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [newUsername, setNewUsername] = useState(userProfile?.name || '');
+  const [usernameLoading, setUsernameLoading] = useState(false);
+  // Change username handler
+  const handleChangeUsername = async () => {
+    if (!newUsername || newUsername.length < 3 || newUsername.length > 20) {
+      Alert.alert('Invalid Username', 'Username must be 3-20 characters.');
+      return;
+    }
+    setUsernameLoading(true);
+    try {
+      const res = await FirebaseService.updateUserProfile(getCurrentUserId, { name: newUsername });
+      if (res.success) {
+        Alert.alert('Success', 'Username updated!');
+        setShowUsernameModal(false);
+        if (loadUserData) await loadUserData(getCurrentUserId);
+      } else {
+        Alert.alert('Error', res.message || 'Failed to update username.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Could not update username.');
+    }
+    setUsernameLoading(false);
+  };
   const insets = useSafeAreaInsets();
   // Ranks state
   const [globalRank, setGlobalRank] = useState(null);
@@ -425,7 +451,48 @@ export default function ProfileScreen({ navigation, route }) {
             </TouchableOpacity>
             
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{userProfile.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.profileName}>{userProfile.name}</Text>
+                {viewingOwnProfile && (
+                  <TouchableOpacity style={{ marginLeft: 10 }} onPress={() => { setNewUsername(userProfile.name || ''); setShowUsernameModal(true); }}>
+                    <MaterialCommunityIcons name="pencil" size={22} color={theme.colors.accent} />
+                  </TouchableOpacity>
+                )}
+              </View>
+      {/* Change Username Modal */}
+      <Modal visible={showUsernameModal} animationType="slide" transparent onRequestClose={() => setShowUsernameModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { padding: 24, maxWidth: 350 }]}> 
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text, marginBottom: 16 }}>Change Username</Text>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: theme.colors.accent,
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 18,
+                color: theme.colors.text,
+                marginBottom: 16
+              }}
+              value={newUsername}
+              onChangeText={setNewUsername}
+              placeholder="Enter new username"
+              maxLength={20}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={{ backgroundColor: theme.colors.accent, borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 10 }}
+              onPress={handleChangeUsername}
+              disabled={usernameLoading}
+            >
+              {usernameLoading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Save</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowUsernameModal(false)} style={{ alignItems: 'center' }}>
+              <Text style={{ color: theme.colors.muted, fontSize: 16 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
               {(() => {
                 const shouldShowTitle = userProfile?.equippedTitle && userProfile.equippedTitle !== 'none';
                 console.log('Should show title?', shouldShowTitle, 'equippedTitle:', userProfile?.equippedTitle);

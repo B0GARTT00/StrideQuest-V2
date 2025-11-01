@@ -101,58 +101,60 @@ export default function ActivityCategoryScreen({ route, navigation }) {
   const categoryIcon = category === 'Indoor' ? 'home-outline' : 'tree-outline';
 
   const handleSelect = async (item) => {
-    if (item.type === 'run') {
+    // All outdoor activities use MapActivity for real tracking
+    if (["run", "walk", "cycle", "hike"].includes(item.type)) {
       navigation.navigate('MapActivity', { preset: item });
-    } else if (item.type === 'yoga' || item.type === 'pushups' || item.type === 'treadmill') {
+      return;
+    }
+    // Indoor activities use TimerActivity
+    if (["yoga", "pushups", "treadmill"].includes(item.type)) {
       navigation.navigate('TimerActivity', { preset: item });
-    } else {
-      // Save activity to Firebase
-      const userId = getCurrentUserId;
-      if (userId) {
-        try {
-          const result = await FirebaseService.saveActivity(userId, {
-            type: item.type,
-            xpEarned: item.xp
-          });
-          if (result.success) {
-            // Reload user data to update profile
-            if (loadUserData) {
-              await loadUserData(userId);
-            }
-            // Check if leveled up
-            if (result.leveledUp) {
-              Alert.alert(
-                '🎊 LEVEL UP! 🎊',
-                `Congratulations! You reached Level ${result.newLevel}!\n\n` +
-                `+${result.xpGained} XP\n` +
-                `+${result.statPointsGained} Free Stat Points\n` +
-                `All stats increased by ${result.newLevel - result.oldLevel}!`,
-                [{ text: 'Amazing!', onPress: () => {
-                  if (navigation.canGoBack()) {
-                    navigation.goBack();
-                  } else {
-                    navigation.navigate('Main');
-                  }
-                }}]
-              );
-            } else {
-              Alert.alert(
-                'Activity Completed! 🎉',
-                `You earned ${result.xpGained} XP!`,
-                [{ text: 'OK', onPress: () => {
-                  if (navigation.canGoBack()) {
-                    navigation.goBack();
-                  } else {
-                    navigation.navigate('Main');
-                  }
-                }}]
-              );
-            }
+      return;
+    }
+    // Fallback: Save instantly (should not be used for current activities)
+    const userId = getCurrentUserId;
+    if (userId) {
+      try {
+        const result = await FirebaseService.saveActivity(userId, {
+          type: item.type,
+          xpEarned: item.xp
+        });
+        if (result.success) {
+          if (loadUserData) {
+            await loadUserData(userId);
           }
-        } catch (error) {
-          console.error('Error saving activity:', error);
-          Alert.alert('Error', 'Failed to save activity');
+          if (result.leveledUp) {
+            Alert.alert(
+              '🎊 LEVEL UP! 🎊',
+              `Congratulations! You reached Level ${result.newLevel}!\n\n` +
+              `+${result.xpGained} XP\n` +
+              `+${result.statPointsGained} Free Stat Points\n` +
+              `All stats increased by ${result.newLevel - result.oldLevel}!`,
+              [{ text: 'Amazing!', onPress: () => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('Main');
+                }
+              }}]
+            );
+          } else {
+            Alert.alert(
+              'Activity Completed! 🎉',
+              `You earned ${result.xpGained} XP!`,
+              [{ text: 'OK', onPress: () => {
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('Main');
+                }
+              }}]
+            );
+          }
         }
+      } catch (error) {
+        console.error('Error saving activity:', error);
+        Alert.alert('Error', 'Failed to save activity');
       }
     }
   };

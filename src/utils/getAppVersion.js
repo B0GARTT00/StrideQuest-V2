@@ -1,14 +1,18 @@
 // src/utils/getAppVersion.js
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 
 export default function getAppVersion() {
-  // Expo managed workflow: Constants.manifest.version
-  // Bare workflow: Constants.expoConfig.version
-  if (Constants.manifest && Constants.manifest.version) {
-    return Constants.manifest.version;
+  // Preferred: native application version (Android versionName / iOS CFBundleShortVersionString)
+  if (Application?.nativeApplicationVersion) {
+    return Application.nativeApplicationVersion;
   }
-  if (Constants.expoConfig && Constants.expoConfig.version) {
+  // Fallbacks (dev or web):
+  if (Constants?.expoConfig?.version) {
     return Constants.expoConfig.version;
+  }
+  if (Constants?.manifest?.version) {
+    return Constants.manifest.version;
   }
   return 'Unknown';
 }

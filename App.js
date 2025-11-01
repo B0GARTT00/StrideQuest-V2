@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
+import * as Location from 'expo-location';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -66,6 +67,17 @@ export default function App() {
     SoloLevel: require('./assets/Eternal.ttf'),
   });
   const [showTerms, setShowTerms] = useState(false);
+
+  // Request location permission immediately on app launch
+  useEffect(() => {
+    (async () => {
+      try {
+        await Location.requestForegroundPermissionsAsync();
+      } catch (e) {
+        // Ignore errors, permission can be requested again later
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {

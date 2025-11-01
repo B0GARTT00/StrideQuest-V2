@@ -13,12 +13,13 @@
     },
     "apk": {
       "distribution": "internal",
+      "autoIncrement": "version",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": "version"
     }
   },
   "submit": {
