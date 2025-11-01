@@ -5,7 +5,6 @@ import Header from '../components/Header';
 import ActivityIcon from '../components/ActivityIcon';
 import { AppContext } from '../context/AppState';
 import FirebaseService from '../services/FirebaseService';
-import { Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -102,14 +101,9 @@ export default function ActivityCategoryScreen({ route, navigation }) {
   const categoryIcon = category === 'Indoor' ? 'home-outline' : 'tree-outline';
 
   const handleSelect = async (item) => {
-    // All outdoor activities use MapActivity for real tracking
+    // All outdoor activities use Leaflet map (no API key needed on any platform)
     if (["run", "walk", "cycle", "hike"].includes(item.type)) {
-      if (Platform.OS === 'android') {
-        // Use Leaflet on Android to avoid Google Maps API key requirement in production
-        navigation.navigate('LeafletMapActivity', { preset: item });
-      } else {
-        navigation.navigate('MapActivity', { preset: item });
-      }
+      navigation.navigate('LeafletMapActivity', { preset: item });
       return;
     }
     // Indoor activities use TimerActivity
