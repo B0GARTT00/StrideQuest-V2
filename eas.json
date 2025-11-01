@@ -13,7 +13,10 @@
     },
     "apk": {
       "distribution": "internal",
-      "autoIncrement": true,
+      "autoIncrement": {
+        "versionCode": true,
+        "appVersion": true
+      },
       "android": {
         "buildType": "apk"
       }
