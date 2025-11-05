@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.stridequest.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to track your activities like running, walking, and cycling.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to track your activities like running, walking, and cycling."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to your location to track your activities like running, walking, and cycling.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

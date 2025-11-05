@@ -43,11 +43,11 @@ export default function WorldChatScreen() {
   return (
     <View style={globalStyles.container}>
       <Header title="World Chat" />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <FlatList
           ref={listRef}
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.list, { paddingBottom: 100 + insets.bottom }]}
+          contentContainerStyle={[styles.list, { paddingBottom: 20 }]}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -59,7 +59,7 @@ export default function WorldChatScreen() {
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
         />
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 16) + 64 }]}>
           <TextInput
             style={styles.input}
             placeholder="Message the world..."
@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
     padding: 10,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-    marginBottom: 72
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   input: {
     flex: 1,

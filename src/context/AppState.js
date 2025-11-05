@@ -2,7 +2,8 @@ import React, { createContext, useEffect, useState, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../config/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import FirebaseService from '../services/FirebaseService';
+import FirebaseService from '../services/OfflineFirebaseService';
+import SyncService from '../services/SyncService';
 
 export const AppContext = createContext(null);
 
@@ -56,6 +57,12 @@ export const AppStateProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialize network monitoring
+  useEffect(() => {
+    const unsubscribe = SyncService.initNetworkMonitoring();
+    return () => unsubscribe();
+  }, []);
+
   // Monitor Firebase Auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -74,36 +81,55 @@ export const AppStateProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // Load user data from Firebase
+  // Load user data from Firebase (with offline support)
   const loadUserData = async (userId) => {
     try {
-      // Fix user levels if needed (migration)
-      await FirebaseService.fixUserLevels();
+      // Check if online
+      const isOnline = await SyncService.checkOnlineStatus();
       
-      // Check if quests exist, if not seed them
-      const questsResult = await FirebaseService.getQuests();
-      let quests = questsResult.success ? questsResult.data : [];
-      
-      if (!quests || quests.length === 0) {
-        console.log('Seeding initial quests to Firebase...');
-        await FirebaseService.seedQuests();
-        // Reload quests after seeding
-        const newQuestsResult = await FirebaseService.getQuests();
-        quests = newQuestsResult.success ? newQuestsResult.data : [];
-      } else if (quests.length < 10) {
-        // If we have fewer than 10 quests, reseed to add new ones
-        console.log('Updating quests to include new ones...');
-        await FirebaseService.seedQuests();
-        // Reload quests after seeding
-        const newQuestsResult = await FirebaseService.getQuests();
-        quests = newQuestsResult.success ? newQuestsResult.data : [];
-      }
-      
+      // Try to load user data (will use cache if offline)
       const userResult = await FirebaseService.getUser(userId);
+      
       if (userResult.success && userResult.data) {
         const userData = userResult.data;
-        const topUsersResult = await FirebaseService.getTopUsers(1000); // Load up to 1000 users
-        const topUsers = topUsersResult.success ? topUsersResult.data : [];
+        
+        // If online, try to load additional data
+        let quests = [];
+        let topUsers = [];
+        
+        if (isOnline) {
+          // Fix user levels if needed (migration) - only when online
+          try {
+            await FirebaseService.fixUserLevels();
+          } catch (e) {
+            console.log('Could not fix user levels (offline?):', e);
+          }
+          
+          // Check if quests exist, if not seed them - only when online
+          const questsResult = await FirebaseService.getQuests();
+          quests = questsResult.success ? questsResult.data : [];
+          
+          if (!quests || quests.length === 0) {
+            console.log('Seeding initial quests to Firebase...');
+            await FirebaseService.seedQuests();
+            const newQuestsResult = await FirebaseService.getQuests();
+            quests = newQuestsResult.success ? newQuestsResult.data : [];
+          } else if (quests.length < 10) {
+            console.log('Updating quests to include new ones...');
+            await FirebaseService.seedQuests();
+            const newQuestsResult = await FirebaseService.getQuests();
+            quests = newQuestsResult.success ? newQuestsResult.data : [];
+          }
+          
+          // Load leaderboard - only when online
+          const topUsersResult = await FirebaseService.getTopUsers(1000);
+          topUsers = topUsersResult.success ? topUsersResult.data : [];
+        } else {
+          // Offline: use default/cached data
+          console.log('Loading in offline mode - using cached data');
+          quests = defaultState.quests;
+          topUsers = defaultState.users;
+        }
         
         console.log('Loaded user data:', userData);
         console.log('User level:', userData.level, 'XP:', userData.xp, 'equippedTitle:', userData.equippedTitle);
@@ -112,10 +138,8 @@ export const AppStateProvider = ({ children }) => {
         const userInList = topUsers.find(u => u.id === userId);
         let usersList = topUsers;
         if (!userInList) {
-          // Add current user to the list if they're not in top users
           usersList = [{ id: userId, ...userData }, ...topUsers];
         } else {
-          // Update the user data in the list to ensure it's fresh
           usersList = topUsers.map(u => u.id === userId ? { id: userId, ...userData } : u);
         }
         
@@ -123,14 +147,25 @@ export const AppStateProvider = ({ children }) => {
           users: Array.isArray(usersList) && usersList.length > 0 ? usersList : defaultState.users,
           quests: Array.isArray(quests) && quests.length > 0 ? quests : defaultState.quests
         });
+      } else if (userResult.offline || !isOnline) {
+        // Offline and no cached user - use default state but allow app to continue
+        console.log('Offline mode - no cached user data, using defaults');
+        setState({
+          ...defaultState,
+          users: [{ id: userId, name: 'You', xp: 0, level: 1, hasMonarchTitle: false }, ...defaultState.users]
+        });
       } else {
-        // User doesn't exist in Firebase, seed initial data
+        // User doesn't exist in Firebase, seed initial data (only if online)
         console.log('New user detected, creating profile...');
         await seedUserData(userId);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
-      setState(defaultState);
+      // On error, still allow app to load with default state
+      setState({
+        ...defaultState,
+        users: [{ id: userId, name: 'You', xp: 0, level: 1, hasMonarchTitle: false }, ...defaultState.users]
+      });
     } finally {
       setLoading(false);
     }

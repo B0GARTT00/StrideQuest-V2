@@ -4,7 +4,7 @@ import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { theme } from '../theme/ThemeProvider';
 import { AppContext } from '../context/AppState';
-import * as FirebaseService from '../services/FirebaseService';
+import * as FirebaseService from '../services/OfflineFirebaseService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');

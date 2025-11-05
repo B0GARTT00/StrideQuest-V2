@@ -20,6 +20,7 @@ import GuildChatScreen from './src/screens/GuildChatScreen';
 import UserPreviewModal from './src/screens/UserPreviewModal';
 import ProfileScreen from './src/screens/ProfileScreen';
 import DirectChatScreen from './src/screens/DirectChatScreen';
+import SyncService from './src/services/SyncService';
 
 const Stack = createNativeStackNavigator();
 
@@ -75,6 +76,14 @@ export default function App() {
         // Ignore errors, permission can be requested again later
       }
     })();
+  }, []);
+
+  // Initialize network monitoring and sync service
+  useEffect(() => {
+    const unsubscribe = SyncService.initNetworkMonitoring();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppState';
-import FirebaseService from '../services/FirebaseService';
+import FirebaseService from '../services/OfflineFirebaseService';
 
 export default function TimerActivityScreen({ route, navigation }) {
   const { preset } = route.params || {};

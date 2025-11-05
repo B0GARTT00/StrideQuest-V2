@@ -3,6 +3,7 @@ import { View, Modal, TouchableOpacity, ScrollView, Text, StyleSheet, Animated }
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import StatusCard from '../components/StatusCard';
+import SyncIndicator from '../components/SyncIndicator';
 import { AppContext } from '../context/AppState';
 import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
@@ -221,6 +222,8 @@ export default function HomeScreen({ navigation }) {
         unreadCount={totalUnreadCount}
         onPressBell={() => setShowNotifications(true)}
       />
+
+      <SyncIndicator />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 + insets.bottom }} showsVerticalScrollIndicator={false}>
         {/* Hero Status Card */}
