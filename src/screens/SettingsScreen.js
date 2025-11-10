@@ -1,17 +1,33 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import TermsAgreementModal from '../components/TermsAgreementModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { theme } from '../theme/ThemeProvider';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { deleteAccount } from '../services/FirebaseService';
+import AdminService from '../services/AdminService';
 import { Alert } from 'react-native';
 
 import getAppVersion from '../utils/getAppVersion';
 
-export default function SettingsScreen({ navigation, onLogout, accountInfo }) {
+export default function SettingsScreen({ onLogout, accountInfo }) {
+  const navigation = useNavigation();
   const [showTerms, setShowTerms] = React.useState(false);
   const [showPrivacy, setShowPrivacy] = React.useState(false);
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
+  // Check admin status
+  React.useEffect(() => {
+    const checkAdmin = async () => {
+      if (accountInfo?.id) {
+        const adminStatus = await AdminService.isAdmin(accountInfo.id);
+        setIsAdmin(adminStatus);
+      }
+    };
+    checkAdmin();
+  }, [accountInfo?.id]);
 
   const appVersion = getAppVersion();
 
@@ -64,6 +80,15 @@ export default function SettingsScreen({ navigation, onLogout, accountInfo }) {
       </View>
 
       <View style={styles.purpleCard}>
+        {isAdmin && (
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Admin')} 
+            style={[styles.button, { backgroundColor: '#ff9800', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
+          >
+            <MaterialCommunityIcons name="shield-crown" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={[styles.buttonText, { color: '#fff' }]}>Admin Panel</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity onPress={() => setShowTerms(true)} style={styles.button}>
           <Text style={styles.buttonText}>View Terms & Agreement</Text>
         </TouchableOpacity>

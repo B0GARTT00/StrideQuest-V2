@@ -47,12 +47,13 @@ export default function HomeScreen({ navigation }) {
   const [guildLoading, setGuildLoading] = useState(false);
   const [guildUnreadCount, setGuildUnreadCount] = useState(0);
   const [privateUnreadCount, setPrivateUnreadCount] = useState(0);
+  const [worldChatUnreadCount, setWorldChatUnreadCount] = useState(0);
   const [discoverCount, setDiscoverCount] = useState(0);
   const insets = useSafeAreaInsets();
   const [showNotifications, setShowNotifications] = useState(false);
   
-  // Total unread count = guild + private messages
-  const totalUnreadCount = guildUnreadCount + privateUnreadCount;
+  // Total unread count = guild + private messages + world chat
+  const totalUnreadCount = guildUnreadCount + privateUnreadCount + worldChatUnreadCount;
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -174,6 +175,27 @@ export default function HomeScreen({ navigation }) {
     return () => {
       mounted = false;
       if (unsubPrivateUnread) unsubPrivateUnread();
+    };
+  }, [me?.id]);
+
+  // Subscribe to world chat unread count
+  useEffect(() => {
+    let unsubWorldChatUnread = null;
+    let mounted = true;
+    
+    if (me?.id) {
+      unsubWorldChatUnread = ChatService.subscribeWorldChatUnreadCount(me.id, (count) => {
+        if (mounted) {
+          setWorldChatUnreadCount(count);
+        }
+      });
+    } else {
+      setWorldChatUnreadCount(0);
+    }
+    
+    return () => {
+      mounted = false;
+      if (unsubWorldChatUnread) unsubWorldChatUnread();
     };
   }, [me?.id]);
 
@@ -530,6 +552,36 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
                     You have {privateUnreadCount} unread private message{privateUnreadCount !== 1 ? 's' : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {worldChatUnreadCount > 0 && (
+                <TouchableOpacity 
+                  style={{ 
+                    backgroundColor: '#0f0d12', 
+                    borderRadius: 12, 
+                    padding: 16, 
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.06)'
+                  }}
+                  onPress={() => {
+                    setShowNotifications(false);
+                    navigation.navigate('WorldChat');
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 24, marginRight: 12 }}>🌍</Text>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800', flex: 1 }}>
+                      World Chat
+                    </Text>
+                    <View style={{ backgroundColor: '#f44336', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>{worldChatUnreadCount}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                    You have {worldChatUnreadCount} unread message{worldChatUnreadCount !== 1 ? 's' : ''} in world chat
                   </Text>
                 </TouchableOpacity>
               )}

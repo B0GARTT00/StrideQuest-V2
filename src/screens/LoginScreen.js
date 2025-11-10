@@ -2,9 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme, globalStyles } from '../theme/ThemeProvider';
-import { auth } from '../config/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { auth, db } from '../config/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { getDoc, doc } from 'firebase/firestore';
 import FirebaseService from '../services/FirebaseService';
+import { GM_ACCOUNT } from '../services/AdminService';
 import getAppVersion from '../utils/getAppVersion';
 
 export default function LoginScreen({ navigation }) {
@@ -34,6 +36,9 @@ export default function LoginScreen({ navigation }) {
     // Load saved preference and credentials
     loadRememberMePreference();
     loadSavedCredentials();
+    
+    // Initialize GM account in background
+    initializeGMAccount();
   }, []);
 
   const loadRememberMePreference = async () => {
@@ -73,6 +78,54 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  // Initialize GM account if it doesn't exist
+  const initializeGMAccount = async () => {
+    try {
+      // Try to sign in as GM first to check if account exists
+      try {
+        await signInWithEmailAndPassword(auth, GM_ACCOUNT.email, GM_ACCOUNT.password);
+        // Account exists, sign out
+        await auth.signOut();
+      } catch (error) {
+        // Account doesn't exist, create it
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          console.log('Creating GM account...');
+          const userCredential = await createUserWithEmailAndPassword(
+            auth, 
+            GM_ACCOUNT.email, 
+            GM_ACCOUNT.password
+          );
+          const user = userCredential.user;
+
+          // Create GM profile in Firestore with admin flag
+          await FirebaseService.saveUser(user.uid, {
+            name: GM_ACCOUNT.displayName,
+            email: GM_ACCOUNT.email,
+            xp: 0,
+            level: 1,
+            hasMonarchTitle: false,
+            equippedTitle: 'admin',
+            isAdmin: true,
+            stats: {
+              strength: 10,
+              agility: 10,
+              sense: 10,
+              vitality: 10,
+              intelligence: 10
+            },
+            statPoints: 0
+          });
+
+          console.log('GM account created successfully');
+          // Sign out the GM account
+          await auth.signOut();
+        }
+      }
+    } catch (error) {
+      console.error('Error initializing GM account:', error);
+    }
+  };
+
   const handleLogin = async () => {
     setError('');
     setLoading(true);
@@ -103,9 +156,51 @@ export default function LoginScreen({ navigation }) {
         await AsyncStorage.removeItem('savedPassword');
       }
       
-      await signInWithEmailAndPassword(auth, email, password);
-      // Navigation will happen automatically via AppState's auth listener
-      navigation.replace('Main');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Check if this is the GM account
+      const user = userCredential.user;
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      const userData = userDoc.data();
+      
+      // Check if user is banned
+      if (userData?.isBanned) {
+        // Check if ban has expired
+        if (userData.banExpiresAt) {
+          const expirationDate = userData.banExpiresAt.toDate ? userData.banExpiresAt.toDate() : new Date(userData.banExpiresAt);
+          const now = new Date();
+          
+          if (now >= expirationDate) {
+            // Ban has expired - unban the user and let them in
+            await FirebaseService.updateUser(user.uid, {
+              isBanned: false,
+              banExpired: true,
+              banExpiredAt: new Date()
+            });
+            // Continue with login
+          } else {
+            // Still banned
+            await signOut(auth);
+            setError(`Account banned until ${expirationDate.toLocaleString()}. Reason: ${userData.banReason || 'Violation of terms'}`);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // Permanent ban
+          await signOut(auth);
+          setError(`Account permanently banned: ${userData.banReason || 'Violation of terms'}`);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      if (userData?.isAdmin || user.email === 'gamemaster@stridequest.com' || userData?.username === 'GM') {
+        // Admin/GM goes directly to Admin Panel
+        navigation.replace('Admin');
+      } else {
+        // Regular users go to main app
+        navigation.replace('Main');
+      }
     } catch (error) {
       console.error('Login error:', error);
       if (error.code === 'auth/user-not-found') {

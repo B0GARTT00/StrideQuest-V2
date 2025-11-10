@@ -11,6 +11,7 @@ import { realtimeDb } from '../config/firebase';
 // }
 
 const MESSAGES_PATH = 'worldChat/messages';
+const LAST_READ_PATH = 'worldChat/lastRead';
 
 export const subscribeWorldChat = (onMessages) => {
   const q = query(ref(realtimeDb, MESSAGES_PATH), orderByChild('createdAt'), limitToLast(100));
@@ -38,6 +39,93 @@ export const sendWorldMessage = async (userId, userName, text) => {
   } catch (e) {
     console.error('sendWorldMessage error:', e);
     return { success: false, error: e?.message || 'Failed to send message' };
+  }
+};
+
+// Subscribe to unread world chat message count for a user
+// Counts messages newer than the user's last read timestamp
+export const subscribeWorldChatUnreadCount = (userId, onUnreadCount) => {
+  if (!userId) {
+    onUnreadCount(0);
+    return () => {};
+  }
+
+  // Get user's last read timestamp
+  const lastReadRef = ref(realtimeDb, `${LAST_READ_PATH}/${userId}`);
+  
+  let lastReadTimestamp = 0;
+  let messagesUnsubscribe = null;
+
+  // First, get the last read timestamp
+  const lastReadUnsubscribe = onValue(lastReadRef, (snapshot) => {
+    lastReadTimestamp = snapshot.val() || 0;
+
+    // Clean up previous messages listener if it exists
+    if (messagesUnsubscribe) {
+      messagesUnsubscribe();
+    }
+
+    // Now subscribe to messages and count unread
+    const messagesRef = ref(realtimeDb, MESSAGES_PATH);
+    messagesUnsubscribe = onValue(messagesRef, (messagesSnapshot) => {
+      const allMessages = messagesSnapshot.val() || {};
+      let unreadCount = 0;
+
+      // Count messages newer than last read timestamp (excluding user's own messages)
+      Object.values(allMessages).forEach((msg) => {
+        if (msg.createdAt > lastReadTimestamp && msg.userId !== userId) {
+          unreadCount++;
+        }
+      });
+
+      onUnreadCount(unreadCount);
+    });
+  });
+
+  // Return cleanup function that unsubscribes both listeners
+  return () => {
+    lastReadUnsubscribe();
+    if (messagesUnsubscribe) {
+      messagesUnsubscribe();
+    }
+  };
+};
+
+// Mark world chat as read for the current user by updating their last read timestamp
+export const markWorldChatAsRead = async (userId) => {
+  if (!userId) return;
+  try {
+    const { set } = await import('firebase/database');
+    const lastReadRef = ref(realtimeDb, `${LAST_READ_PATH}/${userId}`);
+    await set(lastReadRef, Date.now());
+  } catch (e) {
+    console.error('markWorldChatAsRead error:', e);
+  }
+};
+
+// Delete a world chat message (only if user is the sender)
+export const deleteWorldMessage = async (messageId, userId) => {
+  try {
+    const { remove, get } = await import('firebase/database');
+    const messageRef = ref(realtimeDb, `${MESSAGES_PATH}/${messageId}`);
+    
+    // Verify the user owns this message
+    const snapshot = await get(messageRef);
+    const message = snapshot.val();
+    
+    if (!message) {
+      return { success: false, error: 'Message not found' };
+    }
+    
+    if (message.userId !== userId) {
+      return { success: false, error: 'You can only delete your own messages' };
+    }
+    
+    await remove(messageRef);
+    return { success: true };
+  } catch (e) {
+    console.error('deleteWorldMessage error:', e);
+    return { success: false, error: e?.message || 'Failed to delete message' };
   }
 };
 
@@ -145,6 +233,33 @@ export const markPrivateChatAsRead = async (userA, userB, currentUserId) => {
   } catch (e) {
     console.error('markPrivateChatAsRead error:', e);
     return { success: false, error: e?.message || 'Failed to mark as read' };
+  }
+};
+
+// Delete a private message (only if user is the sender)
+export const deletePrivateMessage = async (userA, userB, messageId, userId) => {
+  try {
+    const { remove, get } = await import('firebase/database');
+    const path = getPrivatePath(userA, userB);
+    const messageRef = ref(realtimeDb, `${path}/${messageId}`);
+    
+    // Verify the user owns this message
+    const snapshot = await get(messageRef);
+    const message = snapshot.val();
+    
+    if (!message) {
+      return { success: false, error: 'Message not found' };
+    }
+    
+    if (message.senderId !== userId) {
+      return { success: false, error: 'You can only delete your own messages' };
+    }
+    
+    await remove(messageRef);
+    return { success: true };
+  } catch (e) {
+    console.error('deletePrivateMessage error:', e);
+    return { success: false, error: e?.message || 'Failed to delete message' };
   }
 };
 

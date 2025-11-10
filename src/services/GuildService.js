@@ -275,6 +275,31 @@ export const sendGuildMessage = async (guildId, { userId, userName }, text) => {
 };
 
 /**
+ * Delete a guild message (only if user is the sender)
+ */
+export const deleteGuildMessage = async (guildId, messageId, userId) => {
+  try {
+    const messageRef = doc(db, 'guilds', guildId, 'messages', messageId);
+    const messageDoc = await getDoc(messageRef);
+    
+    if (!messageDoc.exists()) {
+      return { success: false, message: 'Message not found' };
+    }
+    
+    const messageData = messageDoc.data();
+    if (messageData.senderId !== userId) {
+      return { success: false, message: 'You can only delete your own messages' };
+    }
+    
+    await deleteDoc(messageRef);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting guild message:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+/**
  * Get guild members with their user data
  */
 export const getGuildMembers = async (guildId) => {
@@ -532,6 +557,7 @@ export default {
   promoteToOfficer,
   subscribeToGuildMessages,
   sendGuildMessage,
+  deleteGuildMessage,
   setGuildChatRead,
   getGuildChatUnreadCount,
   subscribeGuildUnread,

@@ -1,9 +1,11 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import { AppContext } from '../context/AppState';
 import * as ChatService from '../services/ChatService';
+import ReportService from '../services/ReportService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WorldChatScreen() {
@@ -20,6 +22,15 @@ export default function WorldChatScreen() {
     return () => unsub && unsub();
   }, []);
 
+  // Mark world chat as read when user views this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      if (currentUser?.uid) {
+        ChatService.markWorldChatAsRead(currentUser.uid);
+      }
+    }, [currentUser?.uid])
+  );
+
   const send = async () => {
     if (!currentUser?.uid) return; // optionally navigate to login
     const name = me?.name || 'Unknown';
@@ -27,16 +38,99 @@ export default function WorldChatScreen() {
     if (res.success) setInput('');
   };
 
+  const handleDelete = async (messageId) => {
+    if (!currentUser?.uid) return;
+    const res = await ChatService.deleteWorldMessage(messageId, currentUser.uid);
+    if (!res.success) {
+      // Optionally show error message
+      console.error('Failed to delete message:', res.error);
+    }
+  };
+
+  const handleReport = async (item) => {
+    Alert.alert(
+      'Report Message',
+      'Why are you reporting this message?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Spam', 
+          onPress: () => submitReport(item, 'Spam')
+        },
+        { 
+          text: 'Harassment', 
+          onPress: () => submitReport(item, 'Harassment')
+        },
+        { 
+          text: 'Inappropriate Content', 
+          onPress: () => submitReport(item, 'Inappropriate Content')
+        },
+        { 
+          text: 'Other', 
+          onPress: () => submitReport(item, 'Other')
+        }
+      ]
+    );
+  };
+
+  const submitReport = async (item, reason) => {
+    const res = await ReportService.reportMessage({
+      reporterId: currentUser?.uid,
+      reporterName: me?.name || 'Unknown',
+      reportedUserId: item.userId,
+      reportedUserName: item.userName,
+      messageId: item.id,
+      messageText: item.text,
+      chatType: 'world',
+      chatId: null,
+      reason: reason,
+      details: ''
+    });
+
+    if (res.success) {
+      Alert.alert('Success', 'Report submitted. Thank you for helping keep our community safe.');
+    } else {
+      Alert.alert('Error', 'Failed to submit report. Please try again.');
+    }
+  };
+
+  const handleLongPress = (item) => {
+    const mine = item.userId === currentUser?.uid;
+    
+    if (mine) {
+      // Show delete option for own messages
+      Alert.alert(
+        'Delete Message',
+        'Are you sure you want to delete this message?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Delete', 
+            style: 'destructive',
+            onPress: () => handleDelete(item.id)
+          }
+        ]
+      );
+    } else {
+      // Show report option for others' messages
+      handleReport(item);
+    }
+  };
+
   const renderItem = ({ item }) => {
     const mine = item.userId === currentUser?.uid;
     return (
-      <View style={[styles.bubbleRow, mine ? styles.rowRight : styles.rowLeft]}>
+      <TouchableOpacity 
+        onLongPress={() => handleLongPress(item)}
+        activeOpacity={0.7}
+        style={[styles.bubbleRow, mine ? styles.rowRight : styles.rowLeft]}
+      >
         <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther]}>
           <Text style={styles.name}>{mine ? 'You' : item.userName || 'User'}</Text>
           <Text style={styles.text}>{item.text}</Text>
           <Text style={styles.time}>{new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import GuildService from '../services/GuildService';
+import ReportService from '../services/ReportService';
 import { AppContext } from '../context/AppState';
 
 export default function GuildChatScreen({ route, navigation }) {
@@ -46,17 +47,99 @@ export default function GuildChatScreen({ route, navigation }) {
     }
   };
 
+  const handleDelete = async (messageId) => {
+    if (!me?.id) return;
+    const res = await GuildService.deleteGuildMessage(guildId, messageId, me.id);
+    if (!res.success) {
+      console.error('Failed to delete message:', res.message);
+    }
+  };
+
+  const handleReport = async (item) => {
+    Alert.alert(
+      'Report Message',
+      'Why are you reporting this message?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Spam', 
+          onPress: () => submitReport(item, 'Spam')
+        },
+        { 
+          text: 'Harassment', 
+          onPress: () => submitReport(item, 'Harassment')
+        },
+        { 
+          text: 'Inappropriate Content', 
+          onPress: () => submitReport(item, 'Inappropriate Content')
+        },
+        { 
+          text: 'Other', 
+          onPress: () => submitReport(item, 'Other')
+        }
+      ]
+    );
+  };
+
+  const submitReport = async (item, reason) => {
+    const res = await ReportService.reportMessage({
+      reporterId: me?.id,
+      reporterName: me?.name || 'Unknown',
+      reportedUserId: item.senderId,
+      reportedUserName: item.senderName,
+      messageId: item.id,
+      messageText: item.text,
+      chatType: 'guild',
+      chatId: guildId,
+      reason: reason,
+      details: ''
+    });
+
+    if (res.success) {
+      Alert.alert('Success', 'Report submitted. Thank you for helping keep our community safe.');
+    } else {
+      Alert.alert('Error', 'Failed to submit report. Please try again.');
+    }
+  };
+
+  const handleLongPress = (item) => {
+    const isMe = item.senderId === me?.id;
+    
+    if (isMe) {
+      // Show delete option for own messages
+      Alert.alert(
+        'Delete Message',
+        'Are you sure you want to delete this message?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Delete', 
+            style: 'destructive',
+            onPress: () => handleDelete(item.id)
+          }
+        ]
+      );
+    } else {
+      // Show report option for others' messages
+      handleReport(item);
+    }
+  };
+
   const renderItem = ({ item }) => {
     const isMe = item.senderId === me?.id;
     return (
-      <View style={[styles.msgRow, isMe ? styles.me : styles.them]}>
+      <TouchableOpacity 
+        onLongPress={() => handleLongPress(item)}
+        activeOpacity={0.7}
+        style={[styles.msgRow, isMe ? styles.me : styles.them]}
+      >
         {!isMe && (
           <Text style={styles.sender}>{item.senderName || 'Unknown'}</Text>
         )}
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
           <Text style={styles.msgText}>{item.text}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 

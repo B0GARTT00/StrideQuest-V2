@@ -17,6 +17,7 @@ import LoadingScreen from './src/components/LoadingScreen';
 import GuildDetailScreen from './src/screens/GuildDetailScreen';
 import GuildsScreen from './src/screens/GuildsScreen';
 import GuildChatScreen from './src/screens/GuildChatScreen';
+import AdminScreen from './src/screens/AdminScreen';
 import UserPreviewModal from './src/screens/UserPreviewModal';
 import ProfileScreen from './src/screens/ProfileScreen';
 import DirectChatScreen from './src/screens/DirectChatScreen';
@@ -41,6 +42,7 @@ function AppNavigator() {
     <Stack.Screen name="Guilds" component={GuildsScreen} />
         <Stack.Screen name="GuildDetail" component={GuildDetailScreen} />
   <Stack.Screen name="GuildChat" component={GuildChatScreen} />
+        <Stack.Screen name="Admin" component={AdminScreen} />
         <Stack.Screen
           name="UserPreview"
           component={UserPreviewModal}

@@ -10,6 +10,7 @@ import { AppContext } from '../context/AppState';
 import FirebaseService from '../services/FirebaseService';
 import { getTier } from '../utils/ranks';
 import FriendService from '../services/FriendService';
+import ReportService from '../services/ReportService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SettingsScreen from './SettingsScreen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -173,6 +174,56 @@ export default function ProfileScreen({ navigation, route }) {
     } else {
       Alert.alert('Error', res.message || 'Failed to send friend request.');
       setFriendRequestSent(false);
+    }
+  };
+
+  // Handle reporting a user
+  const handleReportUser = () => {
+    if (!currentUser || !userProfile) return;
+    
+    Alert.alert(
+      'Report User',
+      'Why are you reporting this user?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Spam', 
+          onPress: () => submitUserReport('Spam')
+        },
+        { 
+          text: 'Harassment', 
+          onPress: () => submitUserReport('Harassment')
+        },
+        { 
+          text: 'Inappropriate Profile', 
+          onPress: () => submitUserReport('Inappropriate Profile')
+        },
+        { 
+          text: 'Cheating', 
+          onPress: () => submitUserReport('Cheating')
+        },
+        { 
+          text: 'Other', 
+          onPress: () => submitUserReport('Other')
+        }
+      ]
+    );
+  };
+
+  const submitUserReport = async (reason) => {
+    const res = await ReportService.reportUser({
+      reporterId: currentUser.uid,
+      reporterName: getCurrentUserProfile?.name || 'Unknown',
+      reportedUserId: userProfile.id,
+      reportedUserName: userProfile.name,
+      reason: reason,
+      details: ''
+    });
+
+    if (res.success) {
+      Alert.alert('Success', 'Report submitted. Thank you for helping keep our community safe.');
+    } else {
+      Alert.alert('Error', res.message || 'Failed to submit report. Please try again.');
     }
   };
 
@@ -534,6 +585,21 @@ export default function ProfileScreen({ navigation, route }) {
                   <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>Friend Request Sent</Text>
                 </View>
               )}
+              {/* Report User Button (only if viewing another user's profile) */}
+              {(!viewingOwnProfile && currentUser && userProfile && currentUser.uid !== userProfile.id) && (
+                <TouchableOpacity style={{
+                  backgroundColor: '#f44336',
+                  borderRadius: 10,
+                  padding: 12,
+                  alignItems: 'center',
+                  marginTop: 10,
+                  flexDirection: 'row',
+                  justifyContent: 'center'
+                }} onPress={handleReportUser}>
+                  <MaterialCommunityIcons name="alert-octagon" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>Report User</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -749,7 +815,6 @@ export default function ProfileScreen({ navigation, route }) {
         )}
         <Modal visible={showSettings} animationType="slide" onRequestClose={() => setShowSettings(false)}>
           <SettingsScreen
-            navigation={navigation}
             onLogout={handleLogout}
             accountInfo={{
               name: currentUser?.displayName || userProfile?.name || '',

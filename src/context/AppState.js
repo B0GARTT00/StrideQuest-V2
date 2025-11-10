@@ -67,6 +67,41 @@ export const AppStateProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // Check if user is banned
+        const userDoc = await FirebaseService.getUser(user.uid);
+        if (userDoc?.isBanned) {
+          // Check if ban has expired
+          if (userDoc.banExpiresAt) {
+            const expirationDate = userDoc.banExpiresAt.toDate ? userDoc.banExpiresAt.toDate() : new Date(userDoc.banExpiresAt);
+            const now = new Date();
+            
+            if (now >= expirationDate) {
+              // Ban has expired - unban the user
+              await FirebaseService.updateUser(user.uid, {
+                isBanned: false,
+                banExpired: true,
+                banExpiredAt: new Date()
+              });
+              // Allow them to continue
+              setCurrentUser(user);
+              await loadUserData(user.uid);
+              setLoading(false);
+              return;
+            }
+          }
+          
+          // User is still banned - sign them out
+          await signOut(auth);
+          const banMessage = userDoc.banExpiresAt 
+            ? `Your account is temporarily banned until ${new Date(userDoc.banExpiresAt.seconds * 1000).toLocaleString()}. Reason: ${userDoc.banReason || 'Violation of terms'}`
+            : `Your account has been permanently banned. Reason: ${userDoc.banReason || 'Violation of terms'}`;
+          alert(banMessage);
+          setCurrentUser(null);
+          setState(defaultState);
+          setLoading(false);
+          return;
+        }
+        
         setCurrentUser(user);
         await loadUserData(user.uid);
       } else {
