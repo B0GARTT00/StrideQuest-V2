@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useContext } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator, Alert, Platform, ScrollView, Animated } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator, Platform, ScrollView, Animated, Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { theme } from '../theme/ThemeProvider';
@@ -193,6 +193,12 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
   const [longPressProgress, setLongPressProgress] = useState(0);
   const longPressTimerRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const [showTooShortModal, setShowTooShortModal] = useState(false);
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [showTooShortSaveModal, setShowTooShortSaveModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showEndedModal, setShowEndedModal] = useState(false);
   // Filtering & smoothing helpers for accurate tracking
   const lastAcceptedRef = useRef(null); // { coord: { latitude, longitude }, t: number }
   const speedEmaRef = useRef(0); // exponential moving average of speed (m/s)
@@ -202,8 +208,9 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Location permission is needed for tracking.');
-        navigation.goBack();
+        setErrorMessage('Location permission is needed for tracking.');
+        setShowErrorModal(true);
+        setTimeout(() => navigation.goBack(), 2000);
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
@@ -315,11 +322,7 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
 
   const pauseTracking = () => {
     if (isLocked) {
-      Alert.alert(
-        '🔒 Button Locked',
-        'Please unlock the Pause button to pause your activity.',
-        [{ text: 'OK' }]
-      );
+      setShowLockedModal(true);
       return;
     }
     setIsPaused(true);
@@ -384,18 +387,8 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
     setLongPressProgress(0);
 
     if (distance < 100) {
-      Alert.alert(
-        'Activity Too Short',
-        'You have not reached the minimum distance of 100 meters to earn XP.',
-        [
-          { text: 'Continue', style: 'cancel' },
-          { 
-            text: 'End Anyway', 
-            style: 'destructive',
-            onPress: () => endWithoutXP()
-          }
-        ]
-      );
+      // Show a custom modal instead of an alert so the UI looks consistent
+      setShowTooShortModal(true);
       return;
     }
 
@@ -413,23 +406,15 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
       setTimerId(null);
     }
     
-    Alert.alert(
-      'Activity Ended',
-      `Distance: ${(distance / 1000).toFixed(2)} km\nDuration: ${formatTime(elapsedMs)}\n\nNo XP earned (minimum 100m required)`,
-      [{ 
-        text: 'OK', 
-        onPress: () => {
-          navigation.navigate('Main', { screen: 'Home' });
-        }
-      }]
-    );
+    setShowTooShortModal(false);
+    setShowEndedModal(true);
   };
 
   const resumeTracking = () => startTracking();
 
   const stopTracking = () => {
     if (distance < 10) {
-      Alert.alert('Too Short', 'Your activity is too short to save. Walk at least 10 meters.');
+      setShowTooShortSaveModal(true);
       return;
     }
     if (watcher) {
@@ -448,7 +433,8 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
     setSaving(true);
     const userId = getCurrentUserId;
     if (!userId) {
-      Alert.alert('Error', 'You must be logged in to save activities.');
+      setErrorMessage('You must be logged in to save activities.');
+      setShowErrorModal(true);
       setSaving(false);
       return;
     }
@@ -470,11 +456,13 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
         });
         if (loadUserData) await loadUserData(userId);
       } else {
-        Alert.alert('Error', 'Failed to save activity. Please try again.');
+        setErrorMessage('Failed to save activity. Please try again.');
+        setShowErrorModal(true);
       }
     } catch (e) {
       console.error('Error saving activity:', e);
-      Alert.alert('Error', 'An error occurred while saving your activity.');
+      setErrorMessage('An error occurred while saving your activity.');
+      setShowErrorModal(true);
     } finally {
       setSaving(false);
     }
@@ -724,6 +712,116 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
                 <Text style={styles.finishButtonText}>Return to Home</Text>
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+      )}
+
+      {/* Too-short activity modal (replaces previous Alert) */}
+      {showTooShortModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.tooShortCard}>
+            <Text style={styles.tooShortTitle}>Activity Too Short</Text>
+            <Text style={styles.tooShortText}>
+              You have not reached the minimum distance of 100 meters to earn XP.
+            </Text>
+
+            <View style={styles.tooShortStats}>
+              <Text style={styles.tooShortStatLabel}>Distance</Text>
+              <Text style={styles.tooShortStatValue}>{(distance / 1000).toFixed(3)} km</Text>
+            </View>
+            <View style={styles.tooShortButtons}>
+              <TouchableOpacity
+                style={[styles.tooShortButton, styles.tooShortButtonCancel]}
+                onPress={() => setShowTooShortModal(false)}
+              >
+                <Text style={styles.tooShortButtonText}>Continue</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tooShortButton, styles.tooShortButtonDestructive]}
+                onPress={() => {
+                  setShowTooShortModal(false);
+                  endWithoutXP();
+                }}
+              >
+                <Text style={styles.tooShortButtonText}>End Anyway</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Locked button modal */}
+      {showLockedModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>🔒 Button Locked</Text>
+            <Text style={styles.alertText}>
+              Please unlock the Pause button to pause your activity.
+            </Text>
+            <TouchableOpacity
+              style={styles.alertButton}
+              onPress={() => setShowLockedModal(false)}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Too short to save modal */}
+      {showTooShortSaveModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Too Short</Text>
+            <Text style={styles.alertText}>
+              Your activity is too short to save. Walk at least 10 meters.
+            </Text>
+            <TouchableOpacity
+              style={styles.alertButton}
+              onPress={() => setShowTooShortSaveModal(false)}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Error modal */}
+      {showErrorModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Error</Text>
+            <Text style={styles.alertText}>{errorMessage}</Text>
+            <TouchableOpacity
+              style={styles.alertButton}
+              onPress={() => setShowErrorModal(false)}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Activity ended modal */}
+      {showEndedModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Activity Ended</Text>
+            <Text style={styles.alertText}>
+              Distance: {(distance / 1000).toFixed(2)} km{'\n'}
+              Duration: {formatTime(elapsedMs)}{'\n\n'}
+              No XP earned (minimum 100m required)
+            </Text>
+            <TouchableOpacity
+              style={styles.alertButton}
+              onPress={() => {
+                setShowEndedModal(false);
+                navigation.navigate('Main', { screen: 'Home' });
+              }}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -1194,6 +1292,115 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     letterSpacing: 2,
+  },
+  // Too-short modal styles
+  tooShortCard: {
+    backgroundColor: '#1a0f2e',
+    borderRadius: 8,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 3,
+    borderColor: '#ff7d9a',
+    alignItems: 'center',
+  },
+  tooShortTitle: {
+    color: '#ffd6e0',
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 8,
+    letterSpacing: 2,
+  },
+  tooShortText: {
+    color: '#e7cfe6',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  tooShortStats: {
+    width: '100%',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,125,154,0.06)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,125,154,0.18)',
+    marginBottom: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tooShortStatLabel: { color: '#ffd6e0', fontWeight: '800' },
+  tooShortStatValue: { color: '#fff', fontWeight: '900' },
+  tooShortButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  tooShortButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  tooShortButtonCancel: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255,255,255,0.12)'
+  },
+  tooShortButtonDestructive: {
+    backgroundColor: '#ef4444',
+    borderColor: '#ef4444'
+  },
+  tooShortButtonText: {
+    color: '#fff',
+    fontWeight: '900',
+  },
+
+  // Generic alert modal styles
+  alertCard: {
+    backgroundColor: '#1a0f2e',
+    borderRadius: 8,
+    padding: 20,
+    width: '85%',
+    maxWidth: 360,
+    borderWidth: 2,
+    borderColor: '#c77dff',
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  alertTitle: {
+    color: '#e0aaff',
+    fontSize: 18,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: 1.5,
+  },
+  alertText: {
+    color: '#d4a5ff',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  alertButton: {
+    backgroundColor: '#c77dff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e0aaff',
+  },
+  alertButtonText: {
+    color: '#1a0f2e',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });
 

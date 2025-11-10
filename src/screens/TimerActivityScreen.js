@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,6 +15,15 @@ export default function TimerActivityScreen({ route, navigation }) {
   const [isPaused, setIsPaused] = useState(false);
   const [longPressProgress, setLongPressProgress] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [showTooShortModal, setShowTooShortModal] = useState(false);
+  const [showConfirmCompleteModal, setShowConfirmCompleteModal] = useState(false);
+  const [showEndedModal, setShowEndedModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showLevelUpModal, setShowLevelUpModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [activityResult, setActivityResult] = useState(null);
   const intervalRef = useRef(null);
   const longPressTimerRef = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -55,11 +64,7 @@ export default function TimerActivityScreen({ route, navigation }) {
 
   const handlePause = () => {
     if (isLocked) {
-      Alert.alert(
-        '🔒 Button Locked',
-        'Please unlock the Pause button to pause your activity.',
-        [{ text: 'OK' }]
-      );
+      setShowLockedModal(true);
       return;
     }
     setIsPaused(true);
@@ -117,49 +122,16 @@ export default function TimerActivityScreen({ route, navigation }) {
     setLongPressProgress(0);
 
     if (seconds < 60) {
-      Alert.alert(
-        'Activity Too Short',
-        'You have not reached the minimum duration of 1 minute to earn XP.',
-        [
-          { text: 'Continue', style: 'cancel' },
-          { 
-            text: 'End Anyway', 
-            style: 'destructive',
-            onPress: () => endWithoutXP()
-          }
-        ]
-      );
+      setShowTooShortModal(true);
       return;
     }
 
-    Alert.alert(
-      'Complete Activity?',
-      `Duration: ${formatTime(seconds)}\n\nAre you sure you want to complete this activity?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Complete', 
-          onPress: () => completeActivity()
-        }
-      ]
-    );
+    setShowConfirmCompleteModal(true);
   };
 
   const endWithoutXP = () => {
-    Alert.alert(
-      'Activity Ended',
-      `Duration: ${formatTime(seconds)}\n\nNo XP earned (minimum 1 minute required)`,
-      [{ 
-        text: 'OK', 
-        onPress: () => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-          } else {
-            navigation.navigate('Main');
-          }
-        }
-      }]
-    );
+    setShowTooShortModal(false);
+    setShowEndedModal(true);
   };
 
   const handleStop = () => {
@@ -170,7 +142,8 @@ export default function TimerActivityScreen({ route, navigation }) {
   const completeActivity = async () => {
     const userId = getCurrentUserId;
     if (!userId) {
-      Alert.alert('Error', 'Please login to save your activity');
+      setErrorMessage('Please login to save your activity');
+      setShowErrorModal(true);
       return;
     }
 
@@ -192,45 +165,19 @@ export default function TimerActivityScreen({ route, navigation }) {
           await loadUserData(userId);
         }
 
+        setActivityResult(result);
+        setShowConfirmCompleteModal(false);
+        
         if (result.leveledUp) {
-          Alert.alert(
-            '🎊 LEVEL UP! 🎊',
-            `Congratulations! You reached Level ${result.newLevel}!\n\n` +
-            `Duration: ${formatTime(seconds)}\n` +
-            `+${result.xpGained} XP\n` +
-            `+${result.statPointsGained} Free Stat Points!`,
-            [{ 
-              text: 'Amazing!', 
-              onPress: () => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                } else {
-                  navigation.navigate('Main');
-                }
-              }
-            }]
-          );
+          setShowLevelUpModal(true);
         } else {
-          Alert.alert(
-            'Activity Completed! 🎉',
-            `Duration: ${formatTime(seconds)}\n` +
-            `You earned ${result.xpGained} XP!`,
-            [{ 
-              text: 'OK', 
-              onPress: () => {
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                } else {
-                  navigation.navigate('Main');
-                }
-              }
-            }]
-          );
+          setShowSuccessModal(true);
         }
       }
     } catch (error) {
       console.error('Error saving activity:', error);
-      Alert.alert('Error', 'Failed to save activity');
+      setErrorMessage('Failed to save activity');
+      setShowErrorModal(true);
     }
   };
 
@@ -371,6 +318,227 @@ export default function TimerActivityScreen({ route, navigation }) {
           💡 Tip: {!isActive ? 'Start your activity' : !isPaused ? (isLocked ? 'Unlock to pause' : 'Lock prevents accidental pause') : 'Hold Complete for 2 seconds'}. Min 1 min to earn XP!
         </Text>
       </View>
+
+      {/* Locked Button Modal */}
+      <Modal
+        visible={showLockedModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowLockedModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Locked!</Text>
+            <Text style={styles.alertText}>Unlock the timer first to pause</Text>
+            <TouchableOpacity 
+              style={styles.alertButton}
+              onPress={() => setShowLockedModal(false)}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Too Short Modal */}
+      <Modal
+        visible={showTooShortModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTooShortModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.tooShortCard}>
+            <Text style={styles.alertTitle}>Activity Too Short</Text>
+            <Text style={styles.alertText}>
+              Activities must be at least 1 minute to earn XP.{'\n\n'}
+              Continue to reach 1 minute or end without saving.
+            </Text>
+            <View style={styles.twoButtonRow}>
+              <TouchableOpacity 
+                style={[styles.alertButton, styles.secondaryButton]}
+                onPress={() => {
+                  setShowTooShortModal(false);
+                  setIsPaused(false);
+                }}
+              >
+                <Text style={[styles.alertButtonText, styles.secondaryButtonText]}>Continue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={endWithoutXP}
+              >
+                <Text style={styles.alertButtonText}>End Anyway</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Confirm Complete Modal */}
+      <Modal
+        visible={showConfirmCompleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.tooShortCard}>
+            <Text style={styles.alertTitle}>Complete Activity?</Text>
+            <Text style={styles.alertText}>
+              Save this activity and earn XP?
+            </Text>
+            <View style={styles.twoButtonRow}>
+              <TouchableOpacity 
+                style={[styles.alertButton, styles.secondaryButton]}
+                onPress={() => setShowConfirmCompleteModal(false)}
+              >
+                <Text style={[styles.alertButtonText, styles.secondaryButtonText]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.alertButton}
+                onPress={completeActivity}
+              >
+                <Text style={styles.alertButtonText}>Complete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Ended Without XP Modal */}
+      <Modal
+        visible={showEndedModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowEndedModal(false);
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Main');
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Activity Ended</Text>
+            <Text style={styles.alertText}>Activity ended without earning XP</Text>
+            <TouchableOpacity 
+              style={styles.alertButton}
+              onPress={() => {
+                setShowEndedModal(false);
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('Main');
+                }
+              }}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        visible={showErrorModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowErrorModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Error</Text>
+            <Text style={styles.alertText}>{errorMessage}</Text>
+            <TouchableOpacity 
+              style={styles.alertButton}
+              onPress={() => setShowErrorModal(false)}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowSuccessModal(false);
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Main');
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>Activity Completed! 🎉</Text>
+            <Text style={styles.alertText}>
+              Duration: {activityResult?.duration || formatTime(seconds)}{'\n'}
+              You earned {activityResult?.xpGained || 0} XP!
+            </Text>
+            <TouchableOpacity 
+              style={styles.alertButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('Main');
+                }
+              }}
+            >
+              <Text style={styles.alertButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Level Up Modal */}
+      <Modal
+        visible={showLevelUpModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowLevelUpModal(false);
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Main');
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertCard}>
+            <Text style={styles.alertTitle}>🎊 LEVEL UP! 🎊</Text>
+            <Text style={styles.alertText}>
+              Congratulations! You reached Level {activityResult?.newLevel}!{'\n\n'}
+              Duration: {activityResult?.duration || formatTime(seconds)}{'\n'}
+              +{activityResult?.xpGained || 0} XP{'\n'}
+              +{activityResult?.statPointsGained || 0} Free Stat Points!
+            </Text>
+            <TouchableOpacity 
+              style={styles.alertButton}
+              onPress={() => {
+                setShowLevelUpModal(false);
+                if (navigation.canGoBack()) {
+                  navigation.goBack();
+                } else {
+                  navigation.navigate('Main');
+                }
+              }}
+            >
+              <Text style={styles.alertButtonText}>Amazing!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -605,5 +773,88 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  alertCard: {
+    backgroundColor: '#1a0f2e',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(199, 125, 255, 0.3)',
+  },
+  tooShortCard: {
+    backgroundColor: '#1a0f2e',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(199, 125, 255, 0.3)',
+  },
+  alertTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  alertText: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 22,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  alertButton: {
+    backgroundColor: '#c77dff',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  alertButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  twoButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  secondaryButton: {
+    backgroundColor: 'rgba(199, 125, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: '#c77dff',
+    flex: 1,
+  },
+  secondaryButtonText: {
+    color: '#c77dff',
   },
 });
