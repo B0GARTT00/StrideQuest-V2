@@ -17,13 +17,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   inner: {
     alignItems: 'center',
     justifyContent: 'center'
   },
   label: {
-    fontWeight: '900'
+    fontWeight: '900',
+    textAlign: 'center'
   }
 });

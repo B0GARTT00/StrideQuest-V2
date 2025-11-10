@@ -1,5 +1,6 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import { View, Modal, TouchableOpacity, ScrollView, Text, StyleSheet, Animated } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import StatusCard from '../components/StatusCard';
@@ -322,7 +323,42 @@ export default function HomeScreen({ navigation }) {
               <Text style={{ color: theme.colors.muted, padding: 8 }}>Loading activities…</Text>
             ) : activities && activities.length > 0 ? (
               activities.slice(0, 4).map((a) => {
-                const emoji = a.type?.toLowerCase() === 'run' ? '🏃' : a.type?.toLowerCase() === 'walk' ? '🚶' : '🚴';
+                // Map activity types to MaterialCommunityIcons
+                const getActivityIcon = (type) => {
+                  const typeKey = type?.toLowerCase() || '';
+                  const iconMap = {
+                    'run': 'run',
+                    'walk': 'walk',
+                    'bike': 'bike',
+                    'cycle': 'bike',
+                    'hike': 'hiking',
+                    'yoga': 'yoga',
+                    'treadmill': 'run-fast',
+                    'pushups': 'human-handsup',
+                    'hiit': 'account-child-outline',
+                    'jumprope': 'jump-rope',
+                  };
+                  return iconMap[typeKey] || 'run';
+                };
+                
+                // Map activity types to their colors (matching ActivityCategoryScreen)
+                const getActivityColor = (type) => {
+                  const typeKey = type?.toLowerCase() || '';
+                  const colorMap = {
+                    'yoga': '#c892ff',
+                    'treadmill': '#ff6b6b',
+                    'pushups': '#ffb86b',
+                    'run': '#ff6b6b',
+                    'walk': '#8ad28a',
+                    'bike': '#6bd3ff',
+                    'cycle': '#6bd3ff',
+                    'hike': '#f39c12',
+                    'hiit': '#ffb86b',
+                    'jumprope': '#4fc3f7',
+                  };
+                  return colorMap[typeKey] || theme.colors.primary;
+                };
+                
                 const duration = typeof a.durationMinutes === 'number'
                   ? `${Math.floor(a.durationMinutes / 60)}:${String(a.durationMinutes % 60).padStart(2, '0')}`
                   : (a.time || '');
@@ -330,14 +366,21 @@ export default function HomeScreen({ navigation }) {
                 const dist = a.distanceKm ?? 0;
                 
                 // Check if it's an indoor activity (no distance tracked)
-                const isIndoor = ['yoga', 'treadmill', 'pushups'].includes(a.type?.toLowerCase());
+                const isIndoor = ['yoga', 'treadmill', 'pushups', 'jumprope'].includes(a.type?.toLowerCase());
                 const metaText = isIndoor ? duration : `${dist} km • ${duration}`;
                 
                 return (
                   <View key={a.id} style={styles.activityCard}>
                     <View style={styles.activityLeft}>
-                      <View style={styles.activityIconCircle}>
-                        <Text style={styles.activityEmoji}>{emoji}</Text>
+                      <View style={[
+                        styles.activityIconCircle,
+                        { backgroundColor: `${getActivityColor(a.type)}15` }
+                      ]}>
+                        <MaterialCommunityIcons 
+                          name={getActivityIcon(a.type)} 
+                          size={24} 
+                          color={getActivityColor(a.type)} 
+                        />
                       </View>
                       <View style={styles.activityInfo}>
                         <Text style={styles.activityType}>{a.type || 'Activity'}</Text>
@@ -756,7 +799,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12

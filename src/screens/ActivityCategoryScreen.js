@@ -21,17 +21,6 @@ const indoor = [
     difficulty: 'Beginner'
   },
   { 
-    id: 'i2', 
-    title: 'Treadmill', 
-    subtitle: 'Indoor running workout', 
-    type: 'treadmill',
-    xp: 45,
-    icon: 'run',
-    iconType: 'MaterialCommunityIcons',
-    color: '#ff6b6b',
-    difficulty: 'Intermediate'
-  },
-  { 
     id: 'i3', 
     title: 'Push ups', 
     subtitle: 'Upper body strength', 
@@ -41,21 +30,32 @@ const indoor = [
     iconType: 'MaterialCommunityIcons',
     color: '#ffb86b',
     difficulty: 'Beginner'
-  }
-];
-
-const outdoor = [
+  },
   { 
-    id: 'o1', 
-    title: 'Run', 
-    subtitle: 'Outdoor running', 
-    type: 'run',
-    xp: 60,
-    icon: 'run',
+    id: 'i2', 
+    title: 'Treadmill', 
+    subtitle: 'Indoor running workout', 
+    type: 'treadmill',
+    xp: 45,
+    icon: 'run-fast',
     iconType: 'MaterialCommunityIcons',
     color: '#ff6b6b',
     difficulty: 'Intermediate'
   },
+  { 
+    id: 'i4', 
+    title: 'Jumping Rope', 
+    subtitle: 'Cardio & coordination', 
+    type: 'jumprope',
+    xp: 50,
+    icon: 'jump-rope',
+    iconType: 'MaterialCommunityIcons',
+    color: '#4fc3f7',
+    difficulty: 'Advanced'
+  }
+];
+
+const outdoor = [
   { 
     id: 'o2', 
     title: 'Walk', 
@@ -68,15 +68,15 @@ const outdoor = [
     difficulty: 'Beginner'
   },
   { 
-    id: 'o3', 
-    title: 'Bike Ride', 
-    subtitle: 'Cycling workout', 
-    type: 'cycle',
-    xp: 80,
-    icon: 'bike',
+    id: 'o1', 
+    title: 'Run', 
+    subtitle: 'Outdoor running', 
+    type: 'run',
+    xp: 60,
+    icon: 'run',
     iconType: 'MaterialCommunityIcons',
-    color: '#6bd3ff',
-    difficulty: 'Advanced'
+    color: '#ff6b6b',
+    difficulty: 'Intermediate'
   },
   { 
     id: 'o4', 
@@ -87,6 +87,17 @@ const outdoor = [
     icon: 'hiking',
     iconType: 'MaterialCommunityIcons',
     color: '#f39c12',
+    difficulty: 'Advanced'
+  },
+  { 
+    id: 'o3', 
+    title: 'Bike Ride', 
+    subtitle: 'Cycling workout', 
+    type: 'cycle',
+    xp: 80,
+    icon: 'bike',
+    iconType: 'MaterialCommunityIcons',
+    color: '#6bd3ff',
     difficulty: 'Advanced'
   }
 ];
@@ -107,7 +118,7 @@ export default function ActivityCategoryScreen({ route, navigation }) {
       return;
     }
     // Indoor activities use TimerActivity
-    if (["yoga", "pushups", "treadmill"].includes(item.type)) {
+    if (["yoga", "pushups", "treadmill", "jumprope"].includes(item.type)) {
       navigation.navigate('TimerActivity', { preset: item });
       return;
     }

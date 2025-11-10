@@ -207,7 +207,9 @@ export default function GuildDetailScreen({ route, navigation }) {
               <Card key={member.id} style={styles.memberCard}>
                 <View style={styles.memberRow}>
                   <View style={styles.memberLeft}>
-                    <BadgeIcon label={tier.key[0]} color={tier.color} size={48} />
+                    <View style={{ marginRight: 12 }}>
+                      <BadgeIcon label={tier.key[0]} color={tier.color} size={48} />
+                    </View>
                     <View style={styles.memberInfo}>
                       <Text style={styles.memberName}>{member.name}</Text>
                       <Text style={styles.memberMeta}>
@@ -357,7 +359,6 @@ const styles = StyleSheet.create({
     flex: 1
   },
   memberInfo: {
-    marginLeft: 12,
     flex: 1
   },
   memberName: {

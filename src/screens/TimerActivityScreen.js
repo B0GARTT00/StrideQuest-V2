@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,7 +13,11 @@ export default function TimerActivityScreen({ route, navigation }) {
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [longPressProgress, setLongPressProgress] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
   const intervalRef = useRef(null);
+  const longPressTimerRef = useRef(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isActive && !isPaused) {
@@ -50,6 +54,14 @@ export default function TimerActivityScreen({ route, navigation }) {
   };
 
   const handlePause = () => {
+    if (isLocked) {
+      Alert.alert(
+        '🔒 Button Locked',
+        'Please unlock the Pause button to pause your activity.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     setIsPaused(true);
   };
 
@@ -57,12 +69,65 @@ export default function TimerActivityScreen({ route, navigation }) {
     setIsPaused(false);
   };
 
-  const handleStop = () => {
+  const toggleLock = () => {
+    setIsLocked(!isLocked);
+  };
+
+  const handleStopPressIn = () => {
+
+    // Start long press timer and animation
+    setLongPressProgress(0);
+    progressAnim.setValue(0);
+    
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2000, // Changed to 2 seconds
+      useNativeDriver: false,
+    }).start();
+
+    let progress = 0;
+    longPressTimerRef.current = setInterval(() => {
+      progress += 0.1;
+      setLongPressProgress(progress);
+      
+      if (progress >= 1) {
+        handleStopComplete();
+      }
+    }, 200); // Adjusted interval for 2 seconds
+  };
+
+  const handleStopPressOut = () => {
+    // Cancel long press
+    if (longPressTimerRef.current) {
+      clearInterval(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    progressAnim.stopAnimation();
+    progressAnim.setValue(0);
+    setLongPressProgress(0);
+  };
+
+  const handleStopComplete = () => {
+    // Clean up timer
+    if (longPressTimerRef.current) {
+      clearInterval(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    progressAnim.setValue(0);
+    setLongPressProgress(0);
+
     if (seconds < 60) {
       Alert.alert(
         'Activity Too Short',
-        'Please complete at least 1 minute to earn XP.',
-        [{ text: 'OK' }]
+        'You have not reached the minimum duration of 1 minute to earn XP.',
+        [
+          { text: 'Continue', style: 'cancel' },
+          { 
+            text: 'End Anyway', 
+            style: 'destructive',
+            onPress: () => endWithoutXP()
+          }
+        ]
       );
       return;
     }
@@ -78,6 +143,28 @@ export default function TimerActivityScreen({ route, navigation }) {
         }
       ]
     );
+  };
+
+  const endWithoutXP = () => {
+    Alert.alert(
+      'Activity Ended',
+      `Duration: ${formatTime(seconds)}\n\nNo XP earned (minimum 1 minute required)`,
+      [{ 
+        text: 'OK', 
+        onPress: () => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Main');
+          }
+        }
+      }]
+    );
+  };
+
+  const handleStop = () => {
+    // This function is now replaced by handleStopPressIn/Out/Complete
+    // Keeping for compatibility but functionality moved to long press handlers
   };
 
   const completeActivity = async () => {
@@ -201,35 +288,87 @@ export default function TimerActivityScreen({ route, navigation }) {
               <MaterialCommunityIcons name="play" size={40} color="#fff" />
               <Text style={styles.controlButtonText}>Start</Text>
             </TouchableOpacity>
-          ) : (
-            <>
+          ) : !isPaused ? (
+            // Running state - show only pause with lock
+            <View style={styles.completeWrapper}>
               <TouchableOpacity 
-                style={[styles.controlButton, styles.pauseButton]}
-                onPress={isPaused ? handleResume : handlePause}
+                style={[styles.circleButton, styles.pauseButton, isLocked && styles.pauseButtonLocked]}
+                onPress={handlePause}
               >
                 <MaterialCommunityIcons 
-                  name={isPaused ? "play" : "pause"} 
-                  size={40} 
+                  name="pause" 
+                  size={32} 
                   color="#fff" 
                 />
-                <Text style={styles.controlButtonText}>
-                  {isPaused ? 'Resume' : 'Pause'}
-                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.controlButton, styles.stopButton]}
-                onPress={handleStop}
+                style={styles.lockButtonSmall}
+                onPress={toggleLock}
               >
-                <MaterialCommunityIcons name="stop" size={40} color="#fff" />
-                <Text style={styles.controlButtonText}>Complete</Text>
+                <MaterialCommunityIcons 
+                  name={isLocked ? "lock" : "lock-open-variant"} 
+                  size={16} 
+                  color={isLocked ? '#ef4444' : '#10b981'} 
+                />
               </TouchableOpacity>
+            </View>
+          ) : (
+            // Paused state - show play and complete
+            <>
+              <TouchableOpacity 
+                style={[styles.circleButton, styles.playButton]}
+                onPress={handleResume}
+              >
+                <MaterialCommunityIcons 
+                  name="play" 
+                  size={32} 
+                  color="#fff" 
+                />
+              </TouchableOpacity>
+              
+              <View style={styles.stopButtonWrapper}>
+                {longPressProgress > 0 && (
+                  <Animated.View 
+                    style={[
+                      styles.progressRing,
+                      {
+                        transform: [
+                          {
+                            rotate: progressAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['0deg', '360deg']
+                            })
+                          }
+                        ]
+                      }
+                    ]}
+                  >
+                    <View style={styles.progressSegment1} />
+                    <View style={styles.progressSegment2} />
+                    <View style={styles.progressSegment3} />
+                    <View style={styles.progressSegment4} />
+                  </Animated.View>
+                )}
+                <TouchableOpacity 
+                  style={[styles.circleButton, styles.stopButton]}
+                  onPressIn={handleStopPressIn}
+                  onPressOut={handleStopPressOut}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons 
+                    name="stop" 
+                    size={32} 
+                    color="#fff" 
+                  />
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
 
         <Text style={styles.tipText}>
-          💡 Tip: Complete at least 1 minute to earn XP. Longer sessions earn bonus XP!
+          💡 Tip: {!isActive ? 'Start your activity' : !isPaused ? (isLocked ? 'Unlock to pause' : 'Lock prevents accidental pause') : 'Hold Complete for 2 seconds'}. Min 1 min to earn XP!
         </Text>
       </View>
     </LinearGradient>
@@ -321,8 +460,9 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    gap: 20,
+    gap: 30,
     marginBottom: 30,
+    alignItems: 'center',
   },
   controlButton: {
     alignItems: 'center',
@@ -332,14 +472,125 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     minWidth: 140,
   },
+  circleButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
   startButton: {
     backgroundColor: '#10b981',
   },
   pauseButton: {
     backgroundColor: '#f59e0b',
   },
+  pauseButtonLocked: {
+    backgroundColor: '#64748b',
+    opacity: 0.7,
+  },
+  playButton: {
+    backgroundColor: '#10b981',
+  },
+  completeWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  stopButtonWrapper: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressRing: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressSegment1: {
+    position: 'absolute',
+    width: 20,
+    height: 6,
+    backgroundColor: '#fff',
+    borderRadius: 3,
+    top: -3,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  progressSegment2: {
+    position: 'absolute',
+    width: 20,
+    height: 6,
+    backgroundColor: '#fff',
+    borderRadius: 3,
+    bottom: -3,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  progressSegment3: {
+    position: 'absolute',
+    width: 6,
+    height: 20,
+    backgroundColor: '#fff',
+    borderRadius: 3,
+    left: -3,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  progressSegment4: {
+    position: 'absolute',
+    width: 6,
+    height: 20,
+    backgroundColor: '#fff',
+    borderRadius: 3,
+    right: -3,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 5,
+  },
   stopButton: {
     backgroundColor: '#ef4444',
+  },
+  stopButtonLocked: {
+    backgroundColor: '#64748b',
+    opacity: 0.7,
+  },
+  lockButtonSmall: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   controlButtonText: {
     color: '#fff',

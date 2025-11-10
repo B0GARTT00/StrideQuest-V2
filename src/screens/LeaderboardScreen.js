@@ -291,7 +291,9 @@ export default function LeaderboardScreen({ navigation }) {
               <Text style={styles.sectionTitle}>Your Position</Text>
               <View style={styles.yourRankCard}>
                 <View style={styles.yourRankRow}>
-                  <BadgeIcon label={`${yourRankObj.rank}`} color={tier.color} size={48} />
+                  <View style={{ marginRight: 12 }}>
+                    <BadgeIcon label={`${yourRankObj.rank}`} color={tier.color} size={48} />
+                  </View>
                   <View style={styles.yourRankInfo}>
                     <Text style={styles.yourRankName}>{you.name}</Text>
                     <Text style={styles.yourRankMeta}>Level {you.level} · {tier.key}{['E', 'D', 'C', 'B', 'A', 'S'].includes(tier.key) ? ' Rank Athlete' : ''}</Text>
@@ -432,8 +434,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   yourRankInfo: {
-    flex: 1,
-    marginLeft: 14
+    flex: 1
   },
   yourRankName: {
     color: theme.colors.text,
