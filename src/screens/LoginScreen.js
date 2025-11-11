@@ -40,23 +40,18 @@ export default function LoginScreen({ navigation }) {
   const glitchOpacity = useRef(new Animated.Value(0)).current;
   const [isGlitching, setIsGlitching] = useState(false);
 
-  // For Expo development, we MUST use the auth proxy
-  // Google requires HTTPS redirect URIs with valid TLDs
-  // Try the legacy proxy format
-  const redirectUri = AuthSession.makeRedirectUri({
-    native: 'stridequest://redirect',
-    useProxy: true,
-  });
-
-  console.log('Redirect URI:', redirectUri);
-
-  // Use useIdTokenAuthRequest which handles the proxy better
+  // Use useIdTokenAuthRequest with all client IDs
+  // expo-auth-session will automatically choose the right one based on the platform
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
     {
-      clientId: GOOGLE_WEB_CLIENT_ID,
-      redirectUri: redirectUri,
+      androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+      iosClientId: GOOGLE_IOS_CLIENT_ID,
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      expoClientId: GOOGLE_EXPO_CLIENT_ID,
     }
   );
+
+  console.log('Auth Request:', request);
 
   // Handle Google Sign-In response
   useEffect(() => {
