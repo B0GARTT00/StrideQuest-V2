@@ -773,13 +773,17 @@ export default function ProfileScreen({ navigation, route }) {
           <View style={styles.statsCard}>
             <View style={styles.statRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statIcon}>🏃</Text>
+                <View style={styles.statIcon}>
+                  <MaterialCommunityIcons name="run" size={28} color="#4CAF50" />
+                </View>
                 <Text style={styles.statNumber}>{activityStats.totalActivities}</Text>
                 <Text style={styles.statLabel}>Activities</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statIcon}>📍</Text>
+                <View style={styles.statIcon}>
+                  <MaterialCommunityIcons name="map-marker-distance" size={28} color="#2196F3" />
+                </View>
                 <Text style={styles.statNumber}>{activityStats.totalDistance}</Text>
                 <Text style={styles.statLabel}>km</Text>
               </View>
@@ -789,7 +793,9 @@ export default function ProfileScreen({ navigation, route }) {
             
             <View style={styles.statRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statIcon}>⏱️</Text>
+                <View style={styles.statIcon}>
+                  <MaterialCommunityIcons name="timer-outline" size={28} color="#FF9800" />
+                </View>
                 <Text style={styles.statNumber}>
                   {activityStats.totalHours}h {activityStats.totalMinutes}m
                 </Text>
@@ -797,7 +803,9 @@ export default function ProfileScreen({ navigation, route }) {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statIcon}>⚡</Text>
+                <View style={styles.statIcon}>
+                  <MaterialCommunityIcons name="lightning-bolt" size={28} color={theme.colors.gold} />
+                </View>
                 <Text style={styles.statNumber}>
                   {userProfile ? (userProfile.xp / Math.max(activityStats.totalActivities, 1)).toFixed(0) : 0}
                 </Text>
@@ -1188,8 +1196,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12
   },
   statIcon: {
-    fontSize: 32,
-    marginBottom: 8
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   statNumber: {
     color: theme.colors.text,
