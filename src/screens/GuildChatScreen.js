@@ -146,7 +146,10 @@ export default function GuildChatScreen({ route, navigation }) {
   return (
     <View style={globalStyles.container}>
       <Header title="Club Chat" showBack onBack={() => navigation.goBack()} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <FlatList
           ref={listRef}
           contentContainerStyle={styles.list}

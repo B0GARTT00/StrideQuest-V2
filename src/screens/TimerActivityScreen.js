@@ -356,7 +356,7 @@ export default function TimerActivityScreen({ route, navigation }) {
             </Text>
             <View style={styles.twoButtonRow}>
               <TouchableOpacity 
-                style={[styles.alertButton, styles.secondaryButton]}
+                style={[styles.alertButton, styles.secondaryButton, { flex: 1 }]}
                 onPress={() => {
                   setShowTooShortModal(false);
                   setIsPaused(false);
@@ -365,7 +365,7 @@ export default function TimerActivityScreen({ route, navigation }) {
                 <Text style={[styles.alertButtonText, styles.secondaryButtonText]}>Continue</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.alertButton}
+                style={[styles.alertButton, { flex: 1 }]}
                 onPress={endWithoutXP}
               >
                 <Text style={styles.alertButtonText}>End Anyway</Text>
@@ -390,13 +390,13 @@ export default function TimerActivityScreen({ route, navigation }) {
             </Text>
             <View style={styles.twoButtonRow}>
               <TouchableOpacity 
-                style={[styles.alertButton, styles.secondaryButton]}
+                style={[styles.alertButton, styles.secondaryButton, { flex: 1 }]}
                 onPress={() => setShowConfirmCompleteModal(false)}
               >
                 <Text style={[styles.alertButtonText, styles.secondaryButtonText]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={styles.alertButton}
+                style={[styles.alertButton, { flex: 1 }]}
                 onPress={completeActivity}
               >
                 <Text style={styles.alertButtonText}>Complete</Text>
@@ -835,6 +835,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 4,
+    alignSelf: 'stretch',
   },
   alertButtonText: {
     color: '#fff',
@@ -852,7 +853,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(199, 125, 255, 0.2)',
     borderWidth: 1,
     borderColor: '#c77dff',
-    flex: 1,
   },
   secondaryButtonText: {
     color: '#c77dff',

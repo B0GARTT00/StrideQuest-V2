@@ -135,7 +135,10 @@ export default function DirectChatScreen({ route, navigation }) {
   return (
     <View style={globalStyles.container}>
       <Header title={userName || 'Chat'} showBack onBack={() => navigation.goBack()} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <FlatList
           ref={listRef}
           contentContainerStyle={styles.list}
