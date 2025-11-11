@@ -419,7 +419,7 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
     }
     if (watcher) {
       watcher.remove();
-      setWatcher(null);
+      setWatcher(null); 
     }
     setIsTracking(false);
     if (timerId) {
