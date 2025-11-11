@@ -179,6 +179,26 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  // Validate password strength
+  const validatePassword = (pwd) => {
+    const errors = [];
+    
+    if (pwd.length < 8) {
+      errors.push('at least 8 characters');
+    }
+    if (!/[a-z]/.test(pwd)) {
+      errors.push('a lowercase letter');
+    }
+    if (!/[A-Z]/.test(pwd)) {
+      errors.push('an uppercase letter');
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd)) {
+      errors.push('a special character');
+    }
+    
+    return errors;
+  };
+
   const handleLogin = async () => {
     setError('');
     setLoading(true);
@@ -289,11 +309,15 @@ export default function LoginScreen({ navigation }) {
       setLoading(false);
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    
+    // Validate password strength
+    const passwordErrors = validatePassword(password);
+    if (passwordErrors.length > 0) {
+      setError(`Password must include ${passwordErrors.join(', ')}`);
       setLoading(false);
       return;
     }
+    
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
@@ -669,6 +693,44 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {isRegister && password && (
+            <View style={styles.passwordRequirements}>
+              <Text style={styles.requirementsTitle}>Password must include:</Text>
+              <View style={styles.requirementRow}>
+                <Text style={password.length >= 8 ? styles.requirementMet : styles.requirementUnmet}>
+                  {password.length >= 8 ? '✓' : '○'}
+                </Text>
+                <Text style={password.length >= 8 ? styles.requirementTextMet : styles.requirementText}>
+                  At least 8 characters
+                </Text>
+              </View>
+              <View style={styles.requirementRow}>
+                <Text style={/[a-z]/.test(password) ? styles.requirementMet : styles.requirementUnmet}>
+                  {/[a-z]/.test(password) ? '✓' : '○'}
+                </Text>
+                <Text style={/[a-z]/.test(password) ? styles.requirementTextMet : styles.requirementText}>
+                  A lowercase letter
+                </Text>
+              </View>
+              <View style={styles.requirementRow}>
+                <Text style={/[A-Z]/.test(password) ? styles.requirementMet : styles.requirementUnmet}>
+                  {/[A-Z]/.test(password) ? '✓' : '○'}
+                </Text>
+                <Text style={/[A-Z]/.test(password) ? styles.requirementTextMet : styles.requirementText}>
+                  An uppercase letter
+                </Text>
+              </View>
+              <View style={styles.requirementRow}>
+                <Text style={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? styles.requirementMet : styles.requirementUnmet}>
+                  {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? '✓' : '○'}
+                </Text>
+                <Text style={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? styles.requirementTextMet : styles.requirementText}>
+                  A special character (!@#$%^&*...)
+                </Text>
+              </View>
+            </View>
+          )}
+
           {isRegister && (
             <View style={[styles.inputWrap, focused === 'confirmPassword' && styles.inputFocus]}>
               <Text style={styles.inputLabel}>Confirm Password</Text>
@@ -1043,6 +1105,49 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     flex: 1,
     fontSize: 13
+  },
+  passwordRequirements: {
+    marginTop: 12,
+    backgroundColor: 'rgba(235, 186, 242, 0.05)',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(235, 186, 242, 0.15)',
+  },
+  requirementsTitle: {
+    color: theme.colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 3,
+  },
+  requirementMet: {
+    color: '#4ade80',
+    fontSize: 14,
+    fontWeight: '900',
+    marginRight: 8,
+    width: 16,
+  },
+  requirementUnmet: {
+    color: theme.colors.muted,
+    fontSize: 14,
+    marginRight: 8,
+    width: 16,
+  },
+  requirementText: {
+    color: theme.colors.muted,
+    fontSize: 12,
+  },
+  requirementTextMet: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: '600',
   },
   versionText: {
     color: '#c77dff',
