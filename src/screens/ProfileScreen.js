@@ -813,6 +813,109 @@ export default function ProfileScreen({ navigation, route }) {
               </View>
             </View>
           </View>
+
+          {/* Recent Activities List */}
+          {loadingActivities ? (
+            <View style={{ marginTop: 16, alignItems: 'center' }}>
+              <Text style={{ color: theme.colors.muted, fontSize: 14 }}>Loading activities...</Text>
+            </View>
+          ) : activities.length > 0 ? (
+            <View style={{ marginTop: 16 }}>
+              <Text style={{ color: theme.colors.muted, fontSize: 12, marginBottom: 8 }}>Recent Activities</Text>
+              {activities.slice(0, 5).map((activity) => {
+                const getActivityIcon = (type) => {
+                  const iconMap = {
+                    running: 'run',
+                    walking: 'walk',
+                    cycling: 'bike',
+                    swimming: 'swim',
+                    hiking: 'hiking',
+                    yoga: 'meditation',
+                    gym: 'weight-lifter',
+                    treadmill: 'run-fast',
+                    pushups: 'arm-flex',
+                    jumprope: 'jump-rope'
+                  };
+                  const typeKey = (type || '').toLowerCase();
+                  return iconMap[typeKey] || 'run';
+                };
+
+                const getActivityColor = (type) => {
+                  const colorMap = {
+                    running: '#4CAF50',
+                    walking: '#2196F3',
+                    cycling: '#FF9800',
+                    swimming: '#00BCD4',
+                    hiking: '#795548',
+                    yoga: '#9C27B0',
+                    gym: '#F44336',
+                    treadmill: '#4CAF50',
+                    pushups: '#F44336',
+                    jumprope: '#FF5722'
+                  };
+                  const typeKey = (type || '').toLowerCase();
+                  return colorMap[typeKey] || theme.colors.primary;
+                };
+
+                const duration = typeof activity.durationMinutes === 'number'
+                  ? `${Math.floor(activity.durationMinutes / 60)}:${String(activity.durationMinutes % 60).padStart(2, '0')}`
+                  : (activity.time || '');
+                const dist = activity.distanceKm ?? activity.distance ?? 0;
+                const isIndoor = ['yoga', 'treadmill', 'pushups', 'jumprope'].includes(activity.type?.toLowerCase());
+                const metaText = isIndoor ? duration : `${dist.toFixed(1)} km • ${duration}`;
+
+                return (
+                  <View
+                    key={activity.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: '#18141c',
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: 8,
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.06)'
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        backgroundColor: `${getActivityColor(activity.type)}15`,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: 12
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={getActivityIcon(activity.type)}
+                        size={24}
+                        color={getActivityColor(activity.type)}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: theme.colors.text, fontWeight: '600', fontSize: 14 }}>
+                        {activity.type || 'Activity'}
+                      </Text>
+                      <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
+                        {metaText}
+                      </Text>
+                    </View>
+                    <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 14 }}>
+                      +{activity.xpEarned ?? activity.xp ?? 0} XP
+                    </Text>
+                  </View>
+                );
+              })}
+              {activities.length > 5 && (
+                <Text style={{ color: theme.colors.muted, fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                  And {activities.length - 5} more...
+                </Text>
+              )}
+            </View>
+          ) : null}
         </View>
 
         {/* Actions (only for your own profile) */}

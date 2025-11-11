@@ -389,7 +389,7 @@ export default function HomeScreen({ navigation }) {
                 
                 // Check if it's an indoor activity (no distance tracked)
                 const isIndoor = ['yoga', 'treadmill', 'pushups', 'jumprope'].includes(a.type?.toLowerCase());
-                const metaText = isIndoor ? duration : `${dist} km • ${duration}`;
+                const metaText = isIndoor ? duration : `${dist.toFixed(1)} km • ${duration}`;
                 
                 return (
                   <View key={a.id} style={styles.activityCard}>
