@@ -51,7 +51,18 @@ export default function LoginScreen({ navigation }) {
     }
   );
 
-  console.log('Auth Request:', request);
+  // Debug logging
+  useEffect(() => {
+    if (request) {
+      console.log('=== Google OAuth Debug ===');
+      console.log('Platform:', Platform.OS);
+      console.log('Android Client ID:', GOOGLE_ANDROID_CLIENT_ID);
+      console.log('Request redirectUri:', request.redirectUri);
+      console.log('Request clientId:', request.clientId);
+      console.log('Request URL:', request.url);
+      console.log('========================');
+    }
+  }, [request]);
 
   // Handle Google Sign-In response
   useEffect(() => {
