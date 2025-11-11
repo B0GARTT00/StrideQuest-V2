@@ -8,6 +8,7 @@ import { getDoc, doc, setDoc } from 'firebase/firestore';
 import FirebaseService from '../services/FirebaseService';
 import { GM_ACCOUNT } from '../services/AdminService';
 import getAppVersion from '../utils/getAppVersion';
+import SessionService from '../services/SessionService';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
@@ -251,6 +252,9 @@ export default function LoginScreen({ navigation }) {
         }
       }
       
+      // Create session for this device
+      await SessionService.createSession(user.uid);
+      
       if (userData?.isAdmin || user.email === 'gamemaster@stridequest.com' || userData?.username === 'GM') {
         // Admin/GM goes directly to Admin Panel
         navigation.replace('Admin');
@@ -325,6 +329,9 @@ export default function LoginScreen({ navigation }) {
 
       // Add to leaderboard
       await FirebaseService.updateLeaderboard(user.uid, username, 0, 1);
+
+      // Create session for this device
+      await SessionService.createSession(user.uid);
 
       // Navigation will happen automatically via AppState's auth listener
       navigation.replace('Main');
@@ -420,6 +427,9 @@ export default function LoginScreen({ navigation }) {
           }
         }
       }
+
+      // Create session for this device
+      await SessionService.createSession(user.uid);
 
       // Navigation will happen automatically via AppState's auth listener
       navigation.replace('Main');

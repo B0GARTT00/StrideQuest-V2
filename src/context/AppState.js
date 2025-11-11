@@ -4,6 +4,7 @@ import { auth } from '../config/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import FirebaseService from '../services/OfflineFirebaseService';
 import SyncService from '../services/SyncService';
+import SessionService from '../services/SessionService';
 
 export const AppContext = createContext(null);
 
@@ -104,6 +105,17 @@ export const AppStateProvider = ({ children }) => {
         
         setCurrentUser(user);
         await loadUserData(user.uid);
+        
+        // Start session monitoring (will detect if user logs in on another device)
+        SessionService.startSessionMonitor(user.uid);
+        
+        // Update session activity periodically
+        const activityInterval = setInterval(() => {
+          SessionService.updateSessionActivity(user.uid);
+        }, 60000); // Update every minute
+        
+        // Clean up interval when user logs out
+        return () => clearInterval(activityInterval);
       } else {
         setCurrentUser(null);
         // No guest/demo fallback — require authentication to load user data
@@ -345,6 +357,10 @@ export const AppStateProvider = ({ children }) => {
   // Logout function
   const logout = async () => {
     try {
+      // End session before signing out
+      if (currentUser) {
+        await SessionService.endSession(currentUser.uid);
+      }
       await signOut(auth);
       // Auth state listener will handle the rest
     } catch (error) {
