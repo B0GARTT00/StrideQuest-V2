@@ -329,7 +329,7 @@ export default function TimerActivityScreen({ route, navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.alertCard}>
             <Text style={styles.alertTitle}>Locked!</Text>
-            <Text style={styles.alertText}>Unlock the timer first to pause</Text>
+            <Text style={styles.alertText}>Unlock the timer first to pause!</Text>
             <TouchableOpacity 
               style={styles.alertButton}
               onPress={() => setShowLockedModal(false)}
