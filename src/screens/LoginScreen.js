@@ -40,16 +40,18 @@ export default function LoginScreen({ navigation }) {
   const glitchOpacity = useRef(new Animated.Value(0)).current;
   const [isGlitching, setIsGlitching] = useState(false);
 
-  // Use useIdTokenAuthRequest with all client IDs
-  // expo-auth-session will automatically choose the right one based on the platform
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
-    {
-      androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-      iosClientId: GOOGLE_IOS_CLIENT_ID,
-      webClientId: GOOGLE_WEB_CLIENT_ID,
-      expoClientId: GOOGLE_EXPO_CLIENT_ID,
-    }
-  );
+  // For Android APK builds, ONLY use androidClientId (no web fallback)
+  // This prevents expo-auth-session from using redirect URIs
+  const googleConfig = Platform.OS === 'android' 
+    ? { androidClientId: GOOGLE_ANDROID_CLIENT_ID }
+    : {
+        androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+        iosClientId: GOOGLE_IOS_CLIENT_ID,
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        expoClientId: GOOGLE_EXPO_CLIENT_ID,
+      };
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(googleConfig);
 
   // Debug logging
   useEffect(() => {
@@ -57,6 +59,7 @@ export default function LoginScreen({ navigation }) {
       console.log('=== Google OAuth Debug ===');
       console.log('Platform:', Platform.OS);
       console.log('Android Client ID:', GOOGLE_ANDROID_CLIENT_ID);
+      console.log('Config:', googleConfig);
       console.log('Request redirectUri:', request.redirectUri);
       console.log('Request clientId:', request.clientId);
       console.log('Request URL:', request.url);
