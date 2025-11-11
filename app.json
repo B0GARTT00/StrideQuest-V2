@@ -55,11 +55,11 @@
         "@react-native-google-signin/google-signin"
       ]
     ],
+    "owner": "bogartttt",
     "extra": {
       "eas": {
-        "projectId": "f4c468fe-a881-48eb-b742-32a92a643f88"
+        "projectId": "e78b7196-fe4a-407c-9b1e-72183ec0c58e"
       }
-    },
-    "owner": "kael0"
+    }
   }
 }
