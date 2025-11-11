@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
+    "scheme": "stridequest",
     "splash": {
       "image": "./assets/splash-bg.png",
       "resizeMode": "contain",

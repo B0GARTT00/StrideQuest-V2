@@ -3,11 +3,19 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingVi
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme, globalStyles } from '../theme/ThemeProvider';
 import { auth, db } from '../config/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
-import { getDoc, doc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { getDoc, doc, setDoc } from 'firebase/firestore';
 import FirebaseService from '../services/FirebaseService';
 import { GM_ACCOUNT } from '../services/AdminService';
 import getAppVersion from '../utils/getAppVersion';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { GOOGLE_WEB_CLIENT_ID, GOOGLE_EXPO_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '../config/googleSignIn';
+import Constants from 'expo-constants';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -31,6 +39,56 @@ export default function LoginScreen({ navigation }) {
   const glitchOffset2 = useRef(new Animated.Value(0)).current;
   const glitchOpacity = useRef(new Animated.Value(0)).current;
   const [isGlitching, setIsGlitching] = useState(false);
+
+  // For Expo development, we MUST use the auth proxy
+  // Google requires HTTPS redirect URIs with valid TLDs
+  // Try the legacy proxy format
+  const redirectUri = AuthSession.makeRedirectUri({
+    native: 'stridequest://redirect',
+    useProxy: true,
+  });
+
+  console.log('Redirect URI:', redirectUri);
+
+  // Use useIdTokenAuthRequest which handles the proxy better
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(
+    {
+      clientId: GOOGLE_WEB_CLIENT_ID,
+      redirectUri: redirectUri,
+    }
+  );
+
+  // Handle Google Sign-In response
+  useEffect(() => {
+    const handleResponse = async () => {
+      if (response?.type === 'success') {
+        console.log('Google Sign-In Success!');
+        console.log('Full Response:', JSON.stringify(response, null, 2));
+        
+        // useIdTokenAuthRequest should provide the ID token in params
+        const idToken = response.params?.id_token;
+        
+        if (idToken) {
+          console.log('ID Token received, signing in...');
+          await handleGoogleSignInSuccess(idToken);
+        } else {
+          console.error('No ID token in response. Response params:', response.params);
+          setError('Failed to get authentication token from Google');
+        }
+      } else if (response?.type === 'error') {
+        console.error('Google Sign-In Error:', response.error);
+        setError(`Google sign-in failed: ${response.error?.message || 'Please try again'}`);
+      } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
+        console.log('Google Sign-In was cancelled');
+      } else if (response) {
+        console.log('Unknown response type:', response.type, response);
+      }
+    };
+    
+    if (response) {
+      handleResponse();
+    }
+  }, [response]);
 
   useEffect(() => {
     // Load saved preference and credentials
@@ -282,6 +340,93 @@ export default function LoginScreen({ navigation }) {
       } else {
         setError('Registration failed. Please try again.');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    try {
+      await promptAsync();
+      // Loading will be set to true in handleGoogleSignInSuccess
+    } catch (error) {
+      console.error('Error prompting Google Sign-In:', error);
+      setError('Failed to open Google Sign-In');
+    }
+  };
+
+  const handleGoogleSignInSuccess = async (idToken) => {
+    setLoading(true);
+    try {
+      // Create Firebase credential with Google ID token
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
+
+      // Check if user exists in Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
+      if (!userDoc.exists()) {
+        // New user - create profile
+        const displayName = user.displayName || user.email.split('@')[0];
+        await FirebaseService.saveUser(user.uid, {
+          name: displayName,
+          email: user.email,
+          xp: 0,
+          level: 1,
+          hasMonarchTitle: false,
+          equippedTitle: 'newbie',
+          stats: {
+            strength: 10,
+            agility: 10,
+            sense: 10,
+            vitality: 10,
+            intelligence: 10
+          },
+          statPoints: 0
+        });
+
+        // Add to leaderboard
+        await FirebaseService.updateLeaderboard(user.uid, displayName, 0, 1);
+      } else {
+        // Existing user - check ban status
+        const userData = userDoc.data();
+        if (userData?.isBanned) {
+          // Check if ban has expired
+          if (userData.banExpiresAt) {
+            const expirationDate = userData.banExpiresAt.toDate ? userData.banExpiresAt.toDate() : new Date(userData.banExpiresAt);
+            const now = new Date();
+            
+            if (now >= expirationDate) {
+              // Ban has expired - unban the user
+              await FirebaseService.updateUser(user.uid, {
+                isBanned: false,
+                banExpired: true,
+                banExpiredAt: new Date()
+              });
+            } else {
+              // Still banned
+              await signOut(auth);
+              setError(`Account banned until ${expirationDate.toLocaleString()}. Reason: ${userData.banReason || 'Violation of terms'}`);
+              setLoading(false);
+              return;
+            }
+          } else {
+            // Permanent ban
+            await signOut(auth);
+            setError(`Account permanently banned: ${userData.banReason || 'Violation of terms'}`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Navigation will happen automatically via AppState's auth listener
+      navigation.replace('Main');
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      setError('Google sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -580,6 +725,26 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
+          {!isRegister && (
+            <>
+              <View style={styles.orDivider}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>OR</Text>
+                <View style={styles.orLine} />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.googleButton} 
+                onPress={handleGoogleSignIn} 
+                activeOpacity={0.85}
+                disabled={loading}
+              >
+                <MaterialCommunityIcons name="google" size={20} color="#fff" />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
           {/* Guest access removed - users must log in or register */}
           <Text style={styles.versionText}>App Version: {appVersion}</Text>
         </View>
@@ -874,13 +1039,48 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     flex: 1,
     fontSize: 13
-  }
-  ,
+  },
   versionText: {
     color: '#c77dff',
     fontSize: 13,
     textAlign: 'center',
     marginTop: 18,
     letterSpacing: 1,
+  },
+  orDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  orLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(189, 183, 199, 0.15)',
+  },
+  orText: {
+    color: theme.colors.muted,
+    fontSize: 12,
+    marginHorizontal: 12,
+    fontWeight: '600',
+  },
+  googleButton: {
+    backgroundColor: '#4285F4',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#4285F4',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  googleButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+    marginLeft: 8,
+    letterSpacing: 0.5,
   }
 });
