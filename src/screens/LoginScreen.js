@@ -9,13 +9,15 @@ import FirebaseService from '../services/FirebaseService';
 import { GM_ACCOUNT } from '../services/AdminService';
 import getAppVersion from '../utils/getAppVersion';
 import SessionService from '../services/SessionService';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
-import * as AuthSession from 'expo-auth-session';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { GOOGLE_WEB_CLIENT_ID, GOOGLE_EXPO_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '../config/googleSignIn';
+import { GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '../config/googleSignIn';
 
-WebBrowser.maybeCompleteAuthSession();
+// Configure Google Sign-In
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID, // From Firebase Console (needed for Firebase Auth)
+  offlineAccess: true,
+});
 
 export default function LoginScreen({ navigation }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -39,65 +41,6 @@ export default function LoginScreen({ navigation }) {
   const glitchOffset2 = useRef(new Animated.Value(0)).current;
   const glitchOpacity = useRef(new Animated.Value(0)).current;
   const [isGlitching, setIsGlitching] = useState(false);
-
-  // For Android APK builds, ONLY use androidClientId (no web fallback)
-  // This prevents expo-auth-session from using redirect URIs
-  const googleConfig = Platform.OS === 'android' 
-    ? { androidClientId: GOOGLE_ANDROID_CLIENT_ID }
-    : {
-        androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-        iosClientId: GOOGLE_IOS_CLIENT_ID,
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        expoClientId: GOOGLE_EXPO_CLIENT_ID,
-      };
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest(googleConfig);
-
-  // Debug logging
-  useEffect(() => {
-    if (request) {
-      console.log('=== Google OAuth Debug ===');
-      console.log('Platform:', Platform.OS);
-      console.log('Android Client ID:', GOOGLE_ANDROID_CLIENT_ID);
-      console.log('Config:', googleConfig);
-      console.log('Request redirectUri:', request.redirectUri);
-      console.log('Request clientId:', request.clientId);
-      console.log('Request URL:', request.url);
-      console.log('========================');
-    }
-  }, [request]);
-
-  // Handle Google Sign-In response
-  useEffect(() => {
-    const handleResponse = async () => {
-      if (response?.type === 'success') {
-        console.log('Google Sign-In Success!');
-        console.log('Full Response:', JSON.stringify(response, null, 2));
-        
-        // useIdTokenAuthRequest should provide the ID token in params
-        const idToken = response.params?.id_token;
-        
-        if (idToken) {
-          console.log('ID Token received, signing in...');
-          await handleGoogleSignInSuccess(idToken);
-        } else {
-          console.error('No ID token in response. Response params:', response.params);
-          setError('Failed to get authentication token from Google');
-        }
-      } else if (response?.type === 'error') {
-        console.error('Google Sign-In Error:', response.error);
-        setError(`Google sign-in failed: ${response.error?.message || 'Please try again'}`);
-      } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
-        console.log('Google Sign-In was cancelled');
-      } else if (response) {
-        console.log('Unknown response type:', response.type, response);
-      }
-    };
-    
-    if (response) {
-      handleResponse();
-    }
-  }, [response]);
 
   useEffect(() => {
     // Load saved preference and credentials
@@ -386,12 +329,41 @@ export default function LoginScreen({ navigation }) {
 
   const handleGoogleSignIn = async () => {
     setError('');
+    setLoading(true);
+    
     try {
-      await promptAsync();
-      // Loading will be set to true in handleGoogleSignInSuccess
+      // Check if Google Play Services are available
+      await GoogleSignin.hasPlayServices();
+      
+      // Sign in with Google
+      const userInfo = await GoogleSignin.signIn();
+      console.log('Google Sign-In Success!', userInfo);
+      
+      // Get the ID token
+      const idToken = userInfo.data?.idToken;
+      
+      if (!idToken) {
+        throw new Error('No ID token received from Google Sign-In');
+      }
+      
+      // Sign in to Firebase with the Google credential
+      await handleGoogleSignInSuccess(idToken);
+      
     } catch (error) {
-      console.error('Error prompting Google Sign-In:', error);
-      setError('Failed to open Google Sign-In');
+      console.error('Google Sign-In Error:', error);
+      
+      if (error.code === 'SIGN_IN_CANCELLED') {
+        // User cancelled the sign-in
+        setError('');
+      } else if (error.code === 'IN_PROGRESS') {
+        setError('Sign-in already in progress');
+      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+        setError('Google Play Services not available');
+      } else {
+        setError(`Google sign-in failed: ${error.message || 'Please try again'}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

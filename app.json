@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stride Quest",
     "slug": "stride-quest",
-    "version": "0.7.0",
+    "version": "1.8.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "dark",
@@ -50,7 +50,10 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin"
+      ]
     ],
     "extra": {
       "eas": {
