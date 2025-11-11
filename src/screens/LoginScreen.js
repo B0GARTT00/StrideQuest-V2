@@ -16,7 +16,9 @@ import { GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '../config/google
 // Configure Google Sign-In
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID, // From Firebase Console (needed for Firebase Auth)
+  androidClientId: GOOGLE_ANDROID_CLIENT_ID, // Android OAuth client ID
   offlineAccess: true,
+  forceCodeForRefreshToken: true,
 });
 
 export default function LoginScreen({ navigation }) {
@@ -351,6 +353,8 @@ export default function LoginScreen({ navigation }) {
       
     } catch (error) {
       console.error('Google Sign-In Error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
       
       if (error.code === 'SIGN_IN_CANCELLED') {
         // User cancelled the sign-in
@@ -359,6 +363,8 @@ export default function LoginScreen({ navigation }) {
         setError('Sign-in already in progress');
       } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
         setError('Google Play Services not available');
+      } else if (error.code === -5 || error.message?.includes('DEVELOPER_ERROR')) {
+        setError('Configuration error. Please contact support. (Error: DEVELOPER_ERROR - Check SHA-1 certificate)');
       } else {
         setError(`Google sign-in failed: ${error.message || 'Please try again'}`);
       }
