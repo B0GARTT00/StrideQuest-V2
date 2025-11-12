@@ -21,18 +21,6 @@ export default function SplashScreen({ navigation, disableTap = false }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setAuthChecked(true);
-      if (!disableTap) {
-        // Auto-navigate after a short delay to show the splash screen
-        setTimeout(() => {
-          if (user) {
-            // User is logged in, go directly to Main
-            navigation.replace('Main');
-          } else {
-            // No user, go to Login
-            navigation.replace('Login');
-          }
-        }, 1500); // Show splash for 1.5 seconds
-      }
     });
 
     return () => unsubscribe();

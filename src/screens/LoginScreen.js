@@ -3,23 +3,12 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingVi
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme, globalStyles } from '../theme/ThemeProvider';
 import { auth, db } from '../config/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import FirebaseService from '../services/FirebaseService';
 import { GM_ACCOUNT } from '../services/AdminService';
 import getAppVersion from '../utils/getAppVersion';
 import SessionService from '../services/SessionService';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '../config/googleSignIn';
-
-// Configure Google Sign-In
-GoogleSignin.configure({
-  webClientId: GOOGLE_WEB_CLIENT_ID, // From Firebase Console (needed for Firebase Auth)
-  androidClientId: GOOGLE_ANDROID_CLIENT_ID, // Android OAuth client ID
-  offlineAccess: true,
-  forceCodeForRefreshToken: true,
-});
 
 export default function LoginScreen({ navigation }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -324,129 +313,6 @@ export default function LoginScreen({ navigation }) {
       } else {
         setError('Registration failed. Please try again.');
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-    
-    try {
-      // Check if Google Play Services are available
-      await GoogleSignin.hasPlayServices();
-      
-      // Sign in with Google
-      const userInfo = await GoogleSignin.signIn();
-      console.log('Google Sign-In Success!', userInfo);
-      
-      // Get the ID token
-      const idToken = userInfo.data?.idToken;
-      
-      if (!idToken) {
-        throw new Error('No ID token received from Google Sign-In');
-      }
-      
-      // Sign in to Firebase with the Google credential
-      await handleGoogleSignInSuccess(idToken);
-      
-    } catch (error) {
-      console.error('Google Sign-In Error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      
-      if (error.code === 'SIGN_IN_CANCELLED') {
-        // User cancelled the sign-in
-        setError('');
-      } else if (error.code === 'IN_PROGRESS') {
-        setError('Sign-in already in progress');
-      } else if (error.code === 'PLAY_SERVICES_NOT_AVAILABLE') {
-        setError('Google Play Services not available');
-      } else if (error.code === -5 || error.message?.includes('DEVELOPER_ERROR')) {
-        setError('Configuration error. Please contact support. (Error: DEVELOPER_ERROR - Check SHA-1 certificate)');
-      } else {
-        setError(`Google sign-in failed: ${error.message || 'Please try again'}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignInSuccess = async (idToken) => {
-    setLoading(true);
-    try {
-      // Create Firebase credential with Google ID token
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      const user = userCredential.user;
-
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      
-      if (!userDoc.exists()) {
-        // New user - create profile
-        const displayName = user.displayName || user.email.split('@')[0];
-        await FirebaseService.saveUser(user.uid, {
-          name: displayName,
-          email: user.email,
-          xp: 0,
-          level: 1,
-          hasMonarchTitle: false,
-          equippedTitle: 'newbie',
-          stats: {
-            strength: 10,
-            agility: 10,
-            sense: 10,
-            vitality: 10,
-            intelligence: 10
-          },
-          statPoints: 0
-        });
-
-        // Add to leaderboard
-        await FirebaseService.updateLeaderboard(user.uid, displayName, 0, 1);
-      } else {
-        // Existing user - check ban status
-        const userData = userDoc.data();
-        if (userData?.isBanned) {
-          // Check if ban has expired
-          if (userData.banExpiresAt) {
-            const expirationDate = userData.banExpiresAt.toDate ? userData.banExpiresAt.toDate() : new Date(userData.banExpiresAt);
-            const now = new Date();
-            
-            if (now >= expirationDate) {
-              // Ban has expired - unban the user
-              await FirebaseService.updateUser(user.uid, {
-                isBanned: false,
-                banExpired: true,
-                banExpiredAt: new Date()
-              });
-            } else {
-              // Still banned
-              await signOut(auth);
-              setError(`Account banned until ${expirationDate.toLocaleString()}. Reason: ${userData.banReason || 'Violation of terms'}`);
-              setLoading(false);
-              return;
-            }
-          } else {
-            // Permanent ban
-            await signOut(auth);
-            setError(`Account permanently banned: ${userData.banReason || 'Violation of terms'}`);
-            setLoading(false);
-            return;
-          }
-        }
-      }
-
-      // Create session for this device
-      await SessionService.createSession(user.uid);
-
-      // Navigation will happen automatically via AppState's auth listener
-      navigation.replace('Main');
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      setError('Google sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -782,26 +648,6 @@ export default function LoginScreen({ navigation }) {
               </>
             )}
           </TouchableOpacity>
-
-          {!isRegister && (
-            <>
-              <View style={styles.orDivider}>
-                <View style={styles.orLine} />
-                <Text style={styles.orText}>OR</Text>
-                <View style={styles.orLine} />
-              </View>
-
-              <TouchableOpacity 
-                style={styles.googleButton} 
-                onPress={handleGoogleSignIn} 
-                activeOpacity={0.85}
-                disabled={loading}
-              >
-                <MaterialCommunityIcons name="google" size={20} color="#fff" />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
-              </TouchableOpacity>
-            </>
-          )}
 
           {/* Guest access removed - users must log in or register */}
           <Text style={styles.versionText}>App Version: {appVersion}</Text>
@@ -1147,41 +993,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 18,
     letterSpacing: 1,
-  },
-  orDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  orLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(189, 183, 199, 0.15)',
-  },
-  orText: {
-    color: theme.colors.muted,
-    fontSize: 12,
-    marginHorizontal: 12,
-    fontWeight: '600',
-  },
-  googleButton: {
-    backgroundColor: '#4285F4',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    shadowColor: '#4285F4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  googleButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-    marginLeft: 8,
-    letterSpacing: 0.5,
   }
 });
