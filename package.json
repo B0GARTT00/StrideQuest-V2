@@ -7,7 +7,11 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major",
+    "update": "npm run version:patch && eas update --branch production"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
