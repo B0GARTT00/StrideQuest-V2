@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence, initializeFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +36,13 @@ try {
 }
 
 export { auth };
-export const db = getFirestore(app); // For structured data (users, activities, quests)
+
+// Initialize Firestore with offline persistence
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true, // Better for React Native
+  cacheSizeBytes: 50000000 // 50MB cache
+});
+
 export const realtimeDb = getDatabase(app); // For real-time leaderboard
 export const storage = getStorage(app); // For file storage (profile pictures, etc.)
 

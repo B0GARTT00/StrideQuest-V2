@@ -505,8 +505,12 @@ export default function HomeScreen({ navigation }) {
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.06)'
                   }}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowNotifications(false);
+                    // Mark guild chat as read immediately
+                    if (myGuild && me?.id) {
+                      await GuildService.setGuildChatRead(myGuild.id, me.id);
+                    }
                     if (myGuild) navigation.navigate('GuildDetail', { guildId: myGuild.id });
                   }}
                 >
@@ -535,10 +539,25 @@ export default function HomeScreen({ navigation }) {
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.06)'
                   }}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowNotifications(false);
-                    // Navigate to a direct messages screen (to be implemented)
-                    // navigation.navigate('DirectMessages');
+                    
+                    // Find the most recent unread private message and navigate to that chat
+                    if (me?.id) {
+                      try {
+                        const conversations = await ChatService.getUnreadPrivateConversations(me.id);
+                        if (conversations && conversations.length > 0) {
+                          // Navigate to the first conversation with unread messages
+                          const firstUnread = conversations[0];
+                          navigation.navigate('DirectChat', { 
+                            userId: firstUnread.userId, 
+                            userName: firstUnread.userName 
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error navigating to private chat:', error);
+                      }
+                    }
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -566,8 +585,12 @@ export default function HomeScreen({ navigation }) {
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.06)'
                   }}
-                  onPress={() => {
+                  onPress={async () => {
                     setShowNotifications(false);
+                    // Mark world chat as read immediately
+                    if (me?.id) {
+                      await ChatService.markWorldChatAsRead(me.id);
+                    }
                     navigation.navigate('WorldChat');
                   }}
                 >

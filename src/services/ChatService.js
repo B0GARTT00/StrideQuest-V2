@@ -263,6 +263,56 @@ export const deletePrivateMessage = async (userA, userB, messageId, userId) => {
   }
 };
 
+// Get list of conversations with unread messages
+export const getUnreadPrivateConversations = async (userId) => {
+  try {
+    const { get } = await import('firebase/database');
+    const privateChatRef = ref(realtimeDb, 'privateChats');
+    const snapshot = await get(privateChatRef);
+    const allChats = snapshot.val() || {};
+    const conversations = [];
+
+    // Iterate through all chat rooms
+    Object.keys(allChats).forEach((chatKey) => {
+      // Check if this user is part of this chat
+      const [userA, userB] = chatKey.split('_');
+      if (userA === userId || userB === userId) {
+        const messages = allChats[chatKey].messages || {};
+        let hasUnread = false;
+        let latestUnreadTime = 0;
+        let otherUserId = userA === userId ? userB : userA;
+        let otherUserName = '';
+
+        // Check for unread messages
+        Object.values(messages).forEach((msg) => {
+          if (msg.recipientId === userId && msg.read === false) {
+            hasUnread = true;
+            if (msg.createdAt > latestUnreadTime) {
+              latestUnreadTime = msg.createdAt;
+              otherUserName = msg.senderName || otherUserId;
+            }
+          }
+        });
+
+        if (hasUnread) {
+          conversations.push({
+            userId: otherUserId,
+            userName: otherUserName,
+            latestUnreadTime
+          });
+        }
+      }
+    });
+
+    // Sort by most recent unread message first
+    conversations.sort((a, b) => b.latestUnreadTime - a.latestUnreadTime);
+    return conversations;
+  } catch (error) {
+    console.error('Error getting unread conversations:', error);
+    return [];
+  }
+};
+
 
 
 

@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image } from 'react-native';
 import { theme } from '../theme/ThemeProvider';
+import { auth } from '../config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function SplashScreen({ navigation, disableTap = false }) {
   // animated values for a quick scale + fade out on tap
@@ -13,9 +15,31 @@ export default function SplashScreen({ navigation, disableTap = false }) {
   const glitchOffset2 = useRef(new Animated.Value(0)).current;
   const glitchOpacity = useRef(new Animated.Value(0)).current;
   const [isGlitching, setIsGlitching] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthChecked(true);
+      if (!disableTap) {
+        // Auto-navigate after a short delay to show the splash screen
+        setTimeout(() => {
+          if (user) {
+            // User is logged in, go directly to Main
+            navigation.replace('Main');
+          } else {
+            // No user, go to Login
+            navigation.replace('Login');
+          }
+        }, 1500); // Show splash for 1.5 seconds
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigation, disableTap]);
 
   const handleTap = () => {
-    if (disableTap) return;
+    if (disableTap || !authChecked) return;
     // stop any pulsing animation, then play a short scale+fade animation, then navigate
     if (pulseAnimRef.current) {
       pulseAnimRef.current.stop();
@@ -26,7 +50,10 @@ export default function SplashScreen({ navigation, disableTap = false }) {
       Animated.timing(scale, { toValue: 0.94, duration: 180, useNativeDriver: true }),
       Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true })
     ]).start(() => {
-      if (navigation && navigation.replace) navigation.replace('Login');
+      const user = auth.currentUser;
+      if (navigation && navigation.replace) {
+        navigation.replace(user ? 'Main' : 'Login');
+      }
     });
   };
 
