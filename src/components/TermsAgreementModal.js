@@ -6,7 +6,7 @@ import getAppVersion from '../utils/getAppVersion';
 const TERMS_TEXT = `
 Terms and Agreement
 
-Last Updated: October 31, 2025
+Last Updated: Novemebr 12, 2025
 
 Welcome!
 
@@ -77,10 +77,10 @@ This document explains the rules, your rights, and our responsibilities. Please 
 - For questions or help, contact us at:
   📧 lamigokyle@gmail.com
   📧 chesedhmorales@gmail.com
-  📍 Developers: Kyle Lamigo and Chesedh Morales
+  📍 Developers: Kyle Lamigo, Chesedh Morales, Harold Porras
 
 13. **Your Acceptance**
-- By tapping “Confirm” or using Stride Quest, you confirm you’ve read and accepted these terms.
+- By tapping “Agree” or using Stride Quest, you confirm you’ve read and accepted these terms.
 
 ---
 

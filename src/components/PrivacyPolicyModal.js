@@ -4,7 +4,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'rea
 const PRIVACY_TEXT = `
 Privacy Policy
 
-Last Updated: October 31, 2025
+Last Updated: Novemeber 12, 2025
 
 Welcome!
 
