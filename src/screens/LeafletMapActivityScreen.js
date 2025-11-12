@@ -34,6 +34,18 @@ const leafletHTML = `<!DOCTYPE html>
       .leaflet-tile-pane { 
         filter: grayscale(20%) contrast(110%) brightness(85%) hue-rotate(240deg) saturate(140%);
       }
+      .offline-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 107, 107, 0.9);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        z-index: 1000;
+        display: none;
+      }
       @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(199, 125, 255, 0.9); }
         50% { box-shadow: 0 0 0 15px rgba(199, 125, 255, 0); }
@@ -56,14 +68,29 @@ const leafletHTML = `<!DOCTYPE html>
     </style>
   </head>
   <body>
+    <div id="offline-indicator" class="offline-indicator">📵 Offline Mode</div>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       const map = L.map('map', { zoomControl: false });
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      
+      // Create tile layer with offline fallback
+      const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        className: 'rpg-tiles'
-      }).addTo(map);
+        className: 'rpg-tiles',
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+      });
+      
+      // Monitor tile loading errors to detect offline mode
+      let offlineMode = false;
+      tileLayer.on('tileerror', function() {
+        if (!offlineMode) {
+          offlineMode = true;
+          document.getElementById('offline-indicator').style.display = 'block';
+        }
+      });
+      
+      tileLayer.addTo(map);
       let poly = null;
       let startMarker = null;
       let currentMarker = null;

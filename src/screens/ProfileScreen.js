@@ -97,25 +97,61 @@ export default function ProfileScreen({ navigation, route }) {
   // State for incoming friend requests (with requester profiles)
   const [incomingRequests, setIncomingRequests] = useState([]);
 
-  // Load incoming friend requests and attach requester display names
+  // Subscribe to incoming friend requests in real-time
   useEffect(() => {
     if (!viewingOwnProfile || !currentUser) return;
     let mounted = true;
-    const loadRequests = async () => {
-      const res = await FriendService.getIncomingFriendRequests(currentUser.uid);
+    let previousCount = 0;
+    let isFirstLoad = true;
+    
+    const unsubscribe = FriendService.subscribeToFriendRequests(currentUser.uid, async (requests) => {
       if (!mounted) return;
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        const items = await Promise.all(res.data.map(async (req) => {
+      
+      // Enrich requests with user data
+      const enrichedRequests = await Promise.all(
+        requests.map(async (req) => {
           const u = await FirebaseService.getUser(req.from);
           return { from: req.from, user: u.success ? u.data : null };
-        }));
-        if (mounted) setIncomingRequests(items.filter(Boolean));
-      } else {
-        if (mounted) setIncomingRequests([]);
+        })
+      );
+      
+      const validRequests = enrichedRequests.filter(r => r.user);
+      
+      if (mounted) {
+        setIncomingRequests(validRequests);
+        
+        // Show notification if new requests arrived (not on first load)
+        if (!isFirstLoad && validRequests.length > previousCount) {
+          const newRequestsCount = validRequests.length - previousCount;
+          const newRequest = validRequests[validRequests.length - 1];
+          
+          Alert.alert(
+            '🤝 New Friend Request!',
+            `${newRequest.user?.name || 'Someone'} wants to be your friend!`,
+            [
+              {
+                text: 'View',
+                onPress: () => {
+                  // Scroll to friend requests section (already visible in ProfileScreen)
+                }
+              },
+              {
+                text: 'Later',
+                style: 'cancel'
+              }
+            ]
+          );
+        }
+        
+        previousCount = validRequests.length;
+        isFirstLoad = false;
       }
+    });
+    
+    return () => {
+      mounted = false;
+      if (unsubscribe) unsubscribe();
     };
-    loadRequests();
-    return () => { mounted = false; };
   }, [viewingOwnProfile, currentUser]);
 
   // Accept friend request handler
@@ -177,6 +213,48 @@ export default function ProfileScreen({ navigation, route }) {
     }
   };
 
+  // Handle unfriending a user
+  const handleUnfriend = async () => {
+    if (!currentUser || !userProfile) return;
+    
+    Alert.alert(
+      'Unfriend',
+      `Are you sure you want to remove ${userProfile.name} from your friends?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Unfriend', 
+          style: 'destructive',
+          onPress: async () => {
+            const res = await FriendService.removeFriend(currentUser.uid, userProfile.id);
+            if (res.success) {
+              Alert.alert('Success', `You are no longer friends with ${userProfile.name}.`);
+              setIsFriend(false);
+              // Refresh friends list
+              if (loadUserData) {
+                await loadUserData(currentUser.uid);
+              }
+              // Also reload friends list for immediate UI update
+              if (userProfile?.id) {
+                const friendsRes = await FriendService.getFriends(userProfile.id);
+                if (friendsRes.success && Array.isArray(friendsRes.data)) {
+                  const ids = friendsRes.data.filter(Boolean);
+                  const profiles = await Promise.all(ids.map(async id => {
+                    const u = await FirebaseService.getUser(id);
+                    return u.success ? u.data : null;
+                  }));
+                  setFriends(profiles.filter(Boolean));
+                }
+              }
+            } else {
+              Alert.alert('Error', res.message || 'Failed to unfriend user.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Handle reporting a user
   const handleReportUser = () => {
     if (!currentUser || !userProfile) return;
@@ -227,19 +305,6 @@ export default function ProfileScreen({ navigation, route }) {
     }
   };
 
-  // Listen for incoming friend requests and show notification
-  useEffect(() => {
-    if (!viewingOwnProfile || !currentUser) return;
-    let unsub = false;
-    const checkRequests = async () => {
-      const res = await FriendService.getIncomingFriendRequests(currentUser.uid);
-      if (res.success && Array.isArray(res.data) && res.data.length > 0 && !unsub) {
-        Alert.alert('Friend Request', 'You have a new friend request!');
-      }
-    };
-    checkRequests();
-    return () => { unsub = true; };
-  }, [viewingOwnProfile, currentUser]);
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -344,10 +409,16 @@ export default function ProfileScreen({ navigation, route }) {
       };
     }
 
-    const totalDistance = activities.reduce((sum, activity) => sum + (activity.distance || 0), 0);
-    const totalDuration = activities.reduce((sum, activity) => sum + (activity.duration || 0), 0);
-    const totalHours = Math.floor(totalDuration / 3600);
-    const totalMinutes = Math.floor((totalDuration % 3600) / 60);
+    const totalDistance = activities.reduce((sum, activity) => sum + (activity.distanceKm || activity.distance || 0), 0);
+    // Convert durationMinutes to seconds, or use duration if it exists
+    const totalDurationSeconds = activities.reduce((sum, activity) => {
+      if (activity.durationMinutes) {
+        return sum + (activity.durationMinutes * 60);
+      }
+      return sum + (activity.duration || 0);
+    }, 0);
+    const totalHours = Math.floor(totalDurationSeconds / 3600);
+    const totalMinutes = Math.floor((totalDurationSeconds % 3600) / 60);
 
     return {
       totalActivities: activities.length,
@@ -585,6 +656,21 @@ export default function ProfileScreen({ navigation, route }) {
                   <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>Friend Request Sent</Text>
                 </View>
               )}
+              {/* Unfriend Button (only if viewing a friend's profile) */}
+              {(!viewingOwnProfile && currentUser && userProfile && currentUser.uid !== userProfile.id && isFriend) && (
+                <TouchableOpacity style={{
+                  backgroundColor: '#ff6b6b',
+                  borderRadius: 10,
+                  padding: 12,
+                  alignItems: 'center',
+                  marginTop: 10,
+                  flexDirection: 'row',
+                  justifyContent: 'center'
+                }} onPress={handleUnfriend}>
+                  <MaterialCommunityIcons name="account-remove" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#fff', fontWeight: '900', fontSize: 15 }}>Unfriend</Text>
+                </TouchableOpacity>
+              )}
               {/* Report User Button (only if viewing another user's profile) */}
               {(!viewingOwnProfile && currentUser && userProfile && currentUser.uid !== userProfile.id) && (
                 <TouchableOpacity style={{
@@ -732,33 +818,108 @@ export default function ProfileScreen({ navigation, route }) {
               transparent={true}
               onRequestClose={() => setFriendsModalVisible(false)}
             >
-              <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.sectionTitle}>All Friends</Text>
-                    <TouchableOpacity onPress={() => setFriendsModalVisible(false)} style={styles.modalClose}>
-                      <Text style={{ color: theme.colors.muted }}>Close</Text>
+              <View style={styles.friendsModalOverlay}>
+                <View style={styles.friendsModalContainer}>
+                  {/* Glow effect */}
+                  <View style={[styles.friendsModalGlow, { backgroundColor: theme.colors.accent, opacity: 0.05 }]} />
+                  
+                  {/* Header */}
+                  <View style={styles.friendsModalHeader}>
+                    <View style={styles.friendsModalTitleWrapper}>
+                      <MaterialCommunityIcons name="account-group" size={28} color={theme.colors.accent} />
+                      <Text style={styles.friendsModalTitle}>Friends</Text>
+                      <View style={styles.friendsCountBadge}>
+                        <Text style={styles.friendsCountText}>{friends.length}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => setFriendsModalVisible(false)} 
+                      style={styles.friendsModalCloseButton}
+                    >
+                      <MaterialCommunityIcons name="close" size={24} color={theme.colors.text} />
                     </TouchableOpacity>
                   </View>
+                  
+                  {/* Divider */}
+                  <View style={styles.friendsModalDivider} />
+                  
+                  {/* Friends List */}
                   <FlatList
                     data={friends}
                     keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity style={styles.friendItem} onPress={() => { setFriendsModalVisible(false); navigation.navigate('UserPreview', { userId: item.id }); }}>
-                        {item.profilePicture ? (
-                          <Image source={{ uri: item.profilePicture }} style={styles.friendItemAvatar} />
-                        ) : (
-                          <View style={[styles.friendAvatarFallback, { width: 40, height: 40, borderRadius: 8 }]}> 
-                            <Text style={styles.friendAvatarInitial}>{(item.name || '?').charAt(0)}</Text>
+                    contentContainerStyle={styles.friendsListContent}
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item }) => {
+                      const friendTier = getTier(item.xp || 0, item.hasMonarchTitle);
+                      return (
+                        <TouchableOpacity 
+                          style={styles.friendCard} 
+                          onPress={() => { 
+                            setFriendsModalVisible(false); 
+                            navigation.navigate('UserPreview', { userId: item.id }); 
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          {/* Tier glow background */}
+                          <View style={[styles.friendCardGlow, { backgroundColor: friendTier.color, opacity: 0.08 }]} />
+                          
+                          <View style={styles.friendCardContent}>
+                            {/* Avatar with tier border */}
+                            <View style={[styles.friendAvatarWrapper, { borderColor: friendTier.color }]}>
+                              {item.profilePicture ? (
+                                <Image source={{ uri: item.profilePicture }} style={styles.friendModalAvatar} />
+                              ) : (
+                                <View style={styles.friendModalAvatarFallback}> 
+                                  <Text style={styles.friendModalAvatarInitial}>
+                                    {(item.name || '?').charAt(0).toUpperCase()}
+                                  </Text>
+                                </View>
+                              )}
+                              {/* Monarch crown */}
+                              {item.hasMonarchTitle && (
+                                <View style={styles.friendMonarchBadge}>
+                                  <Text style={styles.friendMonarchIcon}>👑</Text>
+                                </View>
+                              )}
+                            </View>
+                            
+                            {/* Friend Info */}
+                            <View style={styles.friendCardInfo}>
+                              <Text style={styles.friendCardName} numberOfLines={1}>
+                                {item.name}
+                              </Text>
+                              <View style={styles.friendCardStats}>
+                                <View style={[styles.friendTierBadge, { borderColor: friendTier.color }]}>
+                                  <Text style={[styles.friendTierText, { color: friendTier.color }]}>
+                                    {friendTier.key}
+                                  </Text>
+                                </View>
+                                <Text style={styles.friendCardLevel}>
+                                  Level {item.level || 1}
+                                </Text>
+                                <Text style={styles.friendCardXP}>
+                                  {(item.xp || 0).toLocaleString()} XP
+                                </Text>
+                              </View>
+                            </View>
+                            
+                            {/* Arrow */}
+                            <MaterialCommunityIcons 
+                              name="chevron-right" 
+                              size={24} 
+                              color={theme.colors.muted} 
+                            />
                           </View>
-                        )}
-                        <View style={{ marginLeft: 10, flex: 1 }}>
-                          <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{item.name}</Text>
-                          <Text style={{ color: theme.colors.muted }}>Level {item.level}</Text>
-                        </View>
-                      </TouchableOpacity>
+                        </TouchableOpacity>
+                      );
+                    }}
+                    ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                    ListEmptyComponent={() => (
+                      <View style={styles.emptyFriendsContainer}>
+                        <MaterialCommunityIcons name="account-off" size={64} color={theme.colors.muted} />
+                        <Text style={styles.emptyFriendsText}>No friends yet</Text>
+                      </View>
                     )}
-                    ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
                   />
                 </View>
               </View>
@@ -1330,5 +1491,213 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
     fontWeight: 'bold',
+  },
+  // Enhanced Friends Modal Styles
+  friendsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end'
+  },
+  friendsModalContainer: {
+    backgroundColor: '#0f0d12',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    position: 'relative',
+    overflow: 'hidden',
+    borderTopWidth: 2,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(199, 125, 255, 0.2)',
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12
+  },
+  friendsModalGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0
+  },
+  friendsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+    position: 'relative',
+    zIndex: 1
+  },
+  friendsModalTitleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  friendsModalTitle: {
+    color: theme.colors.text,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginLeft: 12
+  },
+  friendsCountBadge: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 12,
+    minWidth: 32,
+    alignItems: 'center',
+    shadowColor: theme.colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4
+  },
+  friendsCountText: {
+    color: '#0f0d12',
+    fontSize: 14,
+    fontWeight: '900'
+  },
+  friendsModalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)'
+  },
+  friendsModalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(199, 125, 255, 0.2)',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4
+  },
+  friendsListContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24
+  },
+  friendCard: {
+    backgroundColor: '#18141c',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(235, 186, 242, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    position: 'relative'
+  },
+  friendCardGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0
+  },
+  friendCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    position: 'relative',
+    zIndex: 1
+  },
+  friendAvatarWrapper: {
+    position: 'relative',
+    borderWidth: 2,
+    borderRadius: 30,
+    padding: 2
+  },
+  friendModalAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1a0f2e'
+  },
+  friendModalAvatarFallback: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(199, 125, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  friendModalAvatarInitial: {
+    color: theme.colors.accent,
+    fontSize: 24,
+    fontWeight: '900'
+  },
+  friendMonarchBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#0f0d12',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.gold
+  },
+  friendMonarchIcon: {
+    fontSize: 14
+  },
+  friendCardInfo: {
+    flex: 1,
+    marginLeft: 14
+  },
+  friendCardName: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    marginBottom: 6
+  },
+  friendCardStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  friendTierBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 1.5
+  },
+  friendTierText: {
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.5
+  },
+  friendCardLevel: {
+    color: theme.colors.text,
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  friendCardXP: {
+    color: theme.colors.muted,
+    fontSize: 11,
+    fontWeight: '600'
+  },
+  emptyFriendsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60
+  },
+  emptyFriendsText: {
+    color: theme.colors.muted,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16
   }
 });

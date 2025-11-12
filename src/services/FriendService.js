@@ -1,4 +1,4 @@
-import { doc, updateDoc, getDoc, arrayUnion, arrayRemove, setDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, arrayUnion, arrayRemove, setDoc, collection, getDocs, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 /**
@@ -91,10 +91,60 @@ export const getFriends = async (userId) => {
   }
 };
 
+/**
+ * Remove a friend (unfriend)
+ */
+export const removeFriend = async (userId, friendId) => {
+  if (userId === friendId) {
+    return { success: false, message: 'Cannot unfriend yourself.' };
+  }
+  try {
+    // Remove each other from friends list
+    const userRef = doc(db, 'users', userId);
+    const friendRef = doc(db, 'users', friendId);
+    
+    await updateDoc(userRef, { friends: arrayRemove(friendId) });
+    await updateDoc(friendRef, { friends: arrayRemove(userId) });
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+};
+
+/**
+ * Subscribe to incoming friend requests in real-time
+ * Returns unsubscribe function
+ */
+export const subscribeToFriendRequests = (userId, callback) => {
+  try {
+    const reqsRef = collection(db, 'friendRequests');
+    const q = query(reqsRef, where('to', '==', userId), where('status', '==', 'pending'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const requests = [];
+      snapshot.forEach(doc => {
+        requests.push({ id: doc.id, ...doc.data() });
+      });
+      callback(requests);
+    }, (error) => {
+      console.error('Error in friend requests subscription:', error);
+      callback([]);
+    });
+    
+    return unsubscribe;
+  } catch (error) {
+    console.error('Error setting up friend requests subscription:', error);
+    return () => {};
+  }
+};
+
 export default {
   sendFriendRequest,
   acceptFriendRequest,
   declineFriendRequest,
   getIncomingFriendRequests,
   getFriends,
+  removeFriend,
+  subscribeToFriendRequests,
 };

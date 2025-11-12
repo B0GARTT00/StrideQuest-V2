@@ -10,6 +10,7 @@ import { getTier } from '../utils/ranks';
 import * as FirebaseService from '../services/FirebaseService';
 import GuildService from '../services/GuildService';
 import * as ChatService from '../services/ChatService';
+import FriendService from '../services/FriendService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Recent activities will be loaded from Firestore in real-time
@@ -48,12 +49,13 @@ export default function HomeScreen({ navigation }) {
   const [guildUnreadCount, setGuildUnreadCount] = useState(0);
   const [privateUnreadCount, setPrivateUnreadCount] = useState(0);
   const [worldChatUnreadCount, setWorldChatUnreadCount] = useState(0);
+  const [friendRequestsCount, setFriendRequestsCount] = useState(0);
   const [discoverCount, setDiscoverCount] = useState(0);
   const insets = useSafeAreaInsets();
   const [showNotifications, setShowNotifications] = useState(false);
   
-  // Total unread count = guild + private messages + world chat
-  const totalUnreadCount = guildUnreadCount + privateUnreadCount + worldChatUnreadCount;
+  // Total unread count = guild + private messages + world chat + friend requests
+  const totalUnreadCount = guildUnreadCount + privateUnreadCount + worldChatUnreadCount + friendRequestsCount;
 
   const level = me ? (me.level || FirebaseService.calculateLevel(me.xp || 0)) : 1;
   
@@ -196,6 +198,27 @@ export default function HomeScreen({ navigation }) {
     return () => {
       mounted = false;
       if (unsubWorldChatUnread) unsubWorldChatUnread();
+    };
+  }, [me?.id]);
+
+  // Subscribe to friend requests
+  useEffect(() => {
+    let unsubFriendRequests = null;
+    let mounted = true;
+    
+    if (me?.id) {
+      unsubFriendRequests = FriendService.subscribeToFriendRequests(me.id, (requests) => {
+        if (mounted) {
+          setFriendRequestsCount(requests.length);
+        }
+      });
+    } else {
+      setFriendRequestsCount(0);
+    }
+    
+    return () => {
+      mounted = false;
+      if (unsubFriendRequests) unsubFriendRequests();
     };
   }, [me?.id]);
 
@@ -605,6 +628,36 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
                     You have {worldChatUnreadCount} unread message{worldChatUnreadCount !== 1 ? 's' : ''} in world chat
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {friendRequestsCount > 0 && (
+                <TouchableOpacity 
+                  style={{ 
+                    backgroundColor: '#0f0d12', 
+                    borderRadius: 12, 
+                    padding: 16, 
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.06)'
+                  }}
+                  onPress={() => {
+                    setShowNotifications(false);
+                    navigation.navigate('Profile');
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 24, marginRight: 12 }}>🤝</Text>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800', flex: 1 }}>
+                      Friend Requests
+                    </Text>
+                    <View style={{ backgroundColor: '#f44336', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>{friendRequestsCount}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                    You have {friendRequestsCount} pending friend request{friendRequestsCount !== 1 ? 's' : ''}
                   </Text>
                 </TouchableOpacity>
               )}

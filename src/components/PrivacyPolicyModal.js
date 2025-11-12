@@ -27,10 +27,10 @@ Total activity summaries and milestones
 
 1.3 Friends & Social Data
 Friend list and friend requests (sent/received)
-Guild memberships and participation
+Club memberships and participation
 
 1.4 Chat Data
-Messages sent in world, guild, and private/direct chats
+Messages sent in world, club, and private/direct chats
 Sender and recipient IDs, timestamps, and message content
 
 1.5 Device Data
@@ -42,7 +42,7 @@ We use collected data only for the purpose of operating and improving the app.
 
 We use your data to:
 - Display your profile, rank, activities, friends, and chat messages.
-- Enable friend requests, guild participation, and private or group messaging.
+- Enable friend requests, club participation, and private or group messaging.
 - Calculate XP, levels, and achievements based on your activity data.
 - Send you friend request alerts, chat updates, and activity reminders.
 - Detect bugs, optimize performance, and understand which features are most useful (using aggregated, non-identifiable analytics).
@@ -55,13 +55,13 @@ All user data is securely stored using Firebase Firestore and Firebase Realtime 
 
 Security
 Access to data is controlled through Firebase Authentication and custom security rules.
-Users can access only their own data and authorized social features (friends/guilds).
+Users can access only their own data and authorized social features (friends/clubs).
 Data is encrypted in transit (HTTPS) and at rest (Firebase encryption).
 We apply industry-standard practices to safeguard your information, but no online platform is completely risk-free. Users are encouraged to use strong passwords and report suspicious activity.
 
 4. Data Sharing
 4.1 With Other Users
-Your profile, rank, and activity stats are visible to other users in social contexts (e.g., friends, guilds, chat).
+Your profile, rank, and activity stats are visible to other users in social contexts (e.g., friends, clubs, chat).
 Your chat messages are visible only to participants in that conversation or chat channel.
 
 4.2 With Service Providers
@@ -79,7 +79,7 @@ We do not sell, trade, or rent user data to any third parties.
 You have full control over your data within Stride Quest:
 Profile Editing: Update your name, avatar, or equipped titles anytime.
 Friend Management: Add, remove, or decline friend requests.
-Guilds: Join or leave guilds at will.
+Club: Join or leave clubs at will.
 Chat Management: Delete your own messages (if feature available).
 Account Deletion: You can request complete account deletion through the app or by contacting support.
 Data Requests: You may request a copy or deletion of your personal data at any time.

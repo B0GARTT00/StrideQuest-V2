@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, Modal } from 'react-native';
 import { theme } from '../theme/ThemeProvider';
 import * as FirebaseService from '../services/FirebaseService';
@@ -8,6 +8,15 @@ export default function StatusCard({ player = {}, compact = false, modal = false
   const [localStats, setLocalStats] = useState(null);
   const [localRemaining, setLocalRemaining] = useState(null);
   const [showDistributeModal, setShowDistributeModal] = useState(false);
+  
+  // Reset local state when player data changes (from parent refresh)
+  useEffect(() => {
+    setLocalStats(null);
+    setLocalRemaining(null);
+  }, [player.stats, player.remaining]);
+  
+  // Define consistent stat order
+  const STAT_ORDER = ['strength', 'agility', 'sense', 'vitality', 'intelligence'];
   
   const p = {
     name: player.name ?? 'SHIDO ITSUKA',
@@ -21,9 +30,18 @@ export default function StatusCard({ player = {}, compact = false, modal = false
     remaining: localRemaining !== null ? localRemaining : (player.remaining ?? 0),
     userId: player.userId
   };
+  
+  // Get stats in consistent order
+  const getOrderedStats = () => {
+    return STAT_ORDER.map(key => [key, p.stats[key] || 10]);
+  };
 
   const handleAllocateStat = async (statName) => {
-    if (p.remaining <= 0) {
+    // Use current local state for validation
+    const currentRemaining = localRemaining !== null ? localRemaining : (player.remaining ?? 0);
+    const currentStats = localStats || player.stats || { strength: 10, agility: 10, sense: 10, vitality: 10, intelligence: 10 };
+    
+    if (currentRemaining <= 0) {
       Alert.alert('No Points', 'You have no remaining stat points to allocate.');
       return;
     }
@@ -37,13 +55,13 @@ export default function StatusCard({ player = {}, compact = false, modal = false
     try {
       const result = await FirebaseService.allocateStatPoints(p.userId, statName.toLowerCase(), 1);
       if (result.success) {
+        // Update local state immediately for responsive UI
         setLocalStats(result.newStats);
         setLocalRemaining(result.remainingPoints);
-        Alert.alert('Success', `+1 ${statName}!`);
         
-        // Notify parent to reload user data
+        // Notify parent to reload user data from Firestore
         if (onStatsChanged) {
-          onStatsChanged();
+          await onStatsChanged();
         }
       } else {
         Alert.alert('Error', result.error || 'Failed to allocate stat point');
@@ -110,14 +128,14 @@ export default function StatusCard({ player = {}, compact = false, modal = false
 
       <View style={styles.statsGrid}>
         <View style={styles.statsCol}>
-          {Object.entries(p.stats).slice(0, 3).map(([k, v]) => (
+          {getOrderedStats().slice(0, 3).map(([k, v]) => (
             <View key={k} style={styles.statRow}>
               <Text style={styles.statLine}>{`${k.toUpperCase()}: ${v}`}</Text>
             </View>
           ))}
         </View>
         <View style={styles.statsCol}>
-          {Object.entries(p.stats).slice(3).map(([k, v]) => (
+          {getOrderedStats().slice(3).map(([k, v]) => (
             <View key={k} style={styles.statRow}>
               <Text style={styles.statLine}>{`${k.toUpperCase()}: ${v}`}</Text>
             </View>
@@ -157,7 +175,7 @@ export default function StatusCard({ player = {}, compact = false, modal = false
             <Text style={styles.distributeSubtitle}>Available: {p.remaining} points</Text>
             
             <View style={styles.distributeGrid}>
-              {Object.entries(p.stats).map(([k, v]) => (
+              {getOrderedStats().map(([k, v]) => (
                 <View key={k} style={styles.distributeRow}>
                   <Text style={styles.distributeStat}>{k.toUpperCase()}</Text>
                   <Text style={styles.distributeValue}>{v}</Text>

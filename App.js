@@ -1,10 +1,12 @@
 import React, { useContext, useEffect, useState } from 'react';
 import * as Location from 'expo-location';
+import * as Updates from 'expo-updates';
 import { useFonts } from 'expo-font';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TermsAgreementModal from './src/components/TermsAgreementModal';
 import { ThemeProvider } from './src/theme/ThemeProvider';
@@ -68,6 +70,42 @@ export default function App() {
     SoloLevel: require('./assets/Eternal.ttf'),
   });
   const [showTerms, setShowTerms] = useState(false);
+
+  // Check for OTA updates on app start
+  useEffect(() => {
+    async function checkForUpdates() {
+      if (__DEV__) {
+        // Skip update checks in development mode
+        return;
+      }
+
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          console.log('Update available, downloading...');
+          await Updates.fetchUpdateAsync();
+          
+          // Notify user and reload
+          Alert.alert(
+            'Update Available',
+            'A new version has been downloaded. The app will restart to apply the update.',
+            [
+              {
+                text: 'Restart Now',
+                onPress: async () => {
+                  await Updates.reloadAsync();
+                }
+              }
+            ]
+          );
+        }
+      } catch (error) {
+        console.log('Error checking for updates:', error);
+      }
+    }
+
+    checkForUpdates();
+  }, []);
 
   // Request location permission immediately on app launch
   useEffect(() => {

@@ -22,7 +22,7 @@ This document explains the rules, your rights, and our responsibilities. Please 
 ---
 
 1. **What is Stride Quest?**
-Stride Quest is a social fitness app that helps you track workouts, earn XP, join guilds, and chat with friends. We encourage healthy activity and positive community engagement.
+ Stride Quest is a social fitness app that helps you track workouts, earn XP, join clubs, and chat with friends. We encourage healthy activity and positive community engagement.
 
 2. **Who Can Use Stride Quest?**
 - You must be 13 or older.
