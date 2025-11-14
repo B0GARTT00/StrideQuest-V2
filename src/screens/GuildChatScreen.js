@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import GuildService from '../services/GuildService';
@@ -143,12 +144,15 @@ export default function GuildChatScreen({ route, navigation }) {
     );
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={globalStyles.container}>
       <Header title="Club Chat" showBack onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
           ref={listRef}
@@ -156,8 +160,9 @@ export default function GuildChatScreen({ route, navigation }) {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
         />
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <TextInput
             style={styles.input}
             placeholder="Message your club..."

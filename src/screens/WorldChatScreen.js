@@ -139,7 +139,7 @@ export default function WorldChatScreen() {
       <Header title="World Chat" />
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
@@ -149,6 +149,7 @@ export default function WorldChatScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={() => (
             <View style={{ paddingVertical: 24, alignItems: 'center' }}>
               <Text style={{ color: theme.colors.muted }}>No messages yet. Say hi 👋</Text>
@@ -157,7 +158,7 @@ export default function WorldChatScreen() {
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
         />
-        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 16) + 64 }]}>
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <TextInput
             style={styles.input}
             placeholder="Message the world..."

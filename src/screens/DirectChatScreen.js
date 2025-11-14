@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Keyboard } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { globalStyles, theme } from '../theme/ThemeProvider';
 import Header from '../components/Header';
 import * as ChatService from '../services/ChatService';
@@ -10,6 +11,7 @@ export default function DirectChatScreen({ route, navigation }) {
   const { userId: otherUserId, userName } = route.params || {};
   const { getCurrentUserProfile } = useContext(AppContext);
   const me = getCurrentUserProfile;
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -137,7 +139,7 @@ export default function DirectChatScreen({ route, navigation }) {
       <Header title={userName || 'Chat'} showBack onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <FlatList
           ref={listRef}
@@ -145,8 +147,9 @@ export default function DirectChatScreen({ route, navigation }) {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
         />
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
           <TextInput
             style={styles.input}
             placeholder={`Message ${userName || 'user'}...`}
