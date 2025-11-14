@@ -12,6 +12,7 @@ export default function GuildChatScreen({ route, navigation }) {
   const { guildId } = route.params;
   const { getCurrentUserProfile } = useContext(AppContext);
   const me = getCurrentUserProfile;
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -143,8 +144,6 @@ export default function GuildChatScreen({ route, navigation }) {
       </TouchableOpacity>
     );
   };
-
-  const insets = useSafeAreaInsets();
 
   return (
     <View style={globalStyles.container}>

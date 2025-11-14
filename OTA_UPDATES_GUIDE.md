@@ -15,9 +15,14 @@ Your app now supports OTA updates! Users can receive updates without reinstallin
 Edit any files in your project (screens, components, services, etc.)
 
 ### Step 2: Update Version (Optional but Recommended)
-In `app.json`, increment the version:
+**IMPORTANT**: The version in `app.json` must match your APK's runtime version!
+
+- If your current APK is version `1.8.0`, keep it at `1.8.0` for OTA updates
+- Only change the version when you rebuild a new APK
+- Check your APK version with: `eas build:list --platform android --profile apk --limit 1`
+
 ```json
-"version": "1.8.1"  // Change from 1.8.0
+"version": "1.8.0"  // Must match your installed APK version!
 ```
 
 ### Step 3: Publish the Update

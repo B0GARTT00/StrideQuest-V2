@@ -145,7 +145,7 @@ export default function WorldChatScreen() {
         <FlatList
           ref={listRef}
           style={{ flex: 1 }}
-          contentContainerStyle={[styles.list, { paddingBottom: 20 }]}
+          contentContainerStyle={{ padding: 12, paddingBottom: 20 }}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
@@ -158,7 +158,7 @@ export default function WorldChatScreen() {
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
         />
-        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom + 72, 82) }]}>
           <TextInput
             style={styles.input}
             placeholder="Message the world..."
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: '#0f0d12',
   },
   input: {
     flex: 1,
