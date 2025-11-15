@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Animated, ActivityIndicator, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { theme, globalStyles } from '../theme/ThemeProvider';
 import { auth, db } from '../config/firebase';
@@ -9,6 +9,8 @@ import FirebaseService from '../services/FirebaseService';
 import { GM_ACCOUNT } from '../services/AdminService';
 import getAppVersion from '../utils/getAppVersion';
 import SessionService from '../services/SessionService';
+import MapDownloadService from '../services/MapDownloadService';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function LoginScreen({ navigation }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -22,6 +24,9 @@ export default function LoginScreen({ navigation }) {
   const appVersion = getAppVersion();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showMapDownloadModal, setShowMapDownloadModal] = useState(false);
+  const [mapDownloadProgress, setMapDownloadProgress] = useState(0);
+  const [isDownloadingMaps, setIsDownloadingMaps] = useState(false);
   const passwordRef = useRef();
   const confirmPasswordRef = useRef();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -218,12 +223,24 @@ export default function LoginScreen({ navigation }) {
       // Create session for this device
       await SessionService.createSession(user.uid);
       
-      if (userData?.isAdmin || user.email === 'gamemaster@stridequest.com' || userData?.username === 'GM') {
-        // Admin/GM goes directly to Admin Panel
-        navigation.replace('Admin');
+      // Check if should prompt for map download (first time users)
+      const hasBeenPrompted = await MapDownloadService.hasBeenPrompted();
+      const mapsDownloaded = await MapDownloadService.areMapsDownloaded();
+      
+      if (!hasBeenPrompted && !mapsDownloaded) {
+        // Show map download modal
+        setShowMapDownloadModal(true);
+        // Mark as prompted so we don't show again
+        await MapDownloadService.markAsPrompted();
       } else {
-        // Regular users go to main app
-        navigation.replace('Main');
+        // Navigate normally
+        if (userData?.isAdmin || user.email === 'gamemaster@stridequest.com' || userData?.username === 'GM') {
+          // Admin/GM goes directly to Admin Panel
+          navigation.replace('Admin');
+        } else {
+          // Regular users go to main app
+          navigation.replace('Main');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -431,6 +448,32 @@ export default function LoginScreen({ navigation }) {
       clearInterval(glitchInterval);
     };
   }, [isGlitching]);
+
+  const handleDownloadMaps = async () => {
+    setIsDownloadingMaps(true);
+    setMapDownloadProgress(0);
+
+    const result = await MapDownloadService.downloadDavaoMaps((progress) => {
+      setMapDownloadProgress(progress.percentage);
+    });
+
+    setIsDownloadingMaps(false);
+
+    if (result.success) {
+      setShowMapDownloadModal(false);
+      // Navigate after successful download
+      navigation.replace('Main');
+    } else {
+      alert('Failed to download maps. You can try again later in Settings.');
+      setShowMapDownloadModal(false);
+      navigation.replace('Main');
+    }
+  };
+
+  const handleSkipDownload = () => {
+    setShowMapDownloadModal(false);
+    navigation.replace('Main');
+  };
 
   return (
     <KeyboardAvoidingView style={[styles.screen]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -653,6 +696,82 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.versionText}>App Version: {appVersion}</Text>
         </View>
       </Animated.View>
+
+      {/* Map Download Modal */}
+      <Modal
+        visible={showMapDownloadModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isDownloadingMaps && handleSkipDownload()}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.mapModal}>
+            <View style={styles.mapModalHeader}>
+              <MaterialCommunityIcons name="map-marker-radius" size={48} color="#c77dff" />
+              <Text style={styles.mapModalTitle}>Offline Maps</Text>
+            </View>
+
+            <Text style={styles.mapModalText}>
+              Download maps for Davao City to use activities offline without internet connection.
+            </Text>
+
+            <View style={styles.mapModalInfo}>
+              <View style={styles.mapInfoRow}>
+                <MaterialCommunityIcons name="download" size={20} color="#c77dff" />
+                <Text style={styles.mapInfoText}>Size: ~{MapDownloadService.getEstimatedSize()} MB</Text>
+              </View>
+              <View style={styles.mapInfoRow}>
+                <MaterialCommunityIcons name="map" size={20} color="#c77dff" />
+                <Text style={styles.mapInfoText}>Coverage: Davao City area</Text>
+              </View>
+              <View style={styles.mapInfoRow}>
+                <MaterialCommunityIcons name="wifi-off" size={20} color="#c77dff" />
+                <Text style={styles.mapInfoText}>Works completely offline</Text>
+              </View>
+            </View>
+
+            {isDownloadingMaps && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>Downloading... {mapDownloadProgress}%</Text>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${mapDownloadProgress}%` }]} />
+                </View>
+              </View>
+            )}
+
+            <View style={styles.mapModalButtons}>
+              <TouchableOpacity 
+                style={[styles.mapModalButton, styles.mapModalButtonSecondary]}
+                onPress={handleSkipDownload}
+                disabled={isDownloadingMaps}
+              >
+                <Text style={styles.mapModalButtonTextSecondary}>
+                  {isDownloadingMaps ? 'Downloading...' : 'Download Later'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.mapModalButton, styles.mapModalButtonPrimary]}
+                onPress={handleDownloadMaps}
+                disabled={isDownloadingMaps}
+              >
+                {isDownloadingMaps ? (
+                  <ActivityIndicator color="#0f0d12" />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="download" size={20} color="#0f0d12" />
+                    <Text style={styles.mapModalButtonTextPrimary}>Download Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.mapModalHint}>
+              You can download maps later in Settings
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -993,5 +1112,120 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 18,
     letterSpacing: 1,
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mapModal: {
+    backgroundColor: '#1a0f2e',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 2,
+    borderColor: '#c77dff',
+    shadowColor: '#c77dff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  mapModalHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  mapModalTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#e0aaff',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  mapModalText: {
+    fontSize: 15,
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  mapModalInfo: {
+    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  mapInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 6,
+  },
+  mapInfoText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: 12,
+    fontWeight: '600',
+  },
+  progressContainer: {
+    marginBottom: 20,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#c77dff',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontWeight: '700',
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#c77dff',
+    borderRadius: 4,
+  },
+  mapModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  mapModalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  mapModalButtonPrimary: {
+    backgroundColor: '#c77dff',
+  },
+  mapModalButtonSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(199, 125, 255, 0.3)',
+  },
+  mapModalButtonTextPrimary: {
+    color: '#0f0d12',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  mapModalButtonTextSecondary: {
+    color: '#c77dff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  mapModalHint: {
+    fontSize: 12,
+    color: theme.colors.muted,
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
 });

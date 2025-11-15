@@ -1,14 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import TermsAgreementModal from '../components/TermsAgreementModal';
 import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 import { theme } from '../theme/ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MapDownloadService from '../services/MapDownloadService';
 
 import { deleteAccount } from '../services/FirebaseService';
 import AdminService from '../services/AdminService';
-import { Alert } from 'react-native';
 
 import getAppVersion from '../utils/getAppVersion';
 
@@ -17,6 +17,10 @@ export default function SettingsScreen({ onLogout, accountInfo }) {
   const [showTerms, setShowTerms] = React.useState(false);
   const [showPrivacy, setShowPrivacy] = React.useState(false);
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [mapsDownloaded, setMapsDownloaded] = React.useState(false);
+  const [isDownloadingMaps, setIsDownloadingMaps] = React.useState(false);
+  const [downloadProgress, setDownloadProgress] = React.useState(0);
+  const [mapDownloadInfo, setMapDownloadInfo] = React.useState(null);
 
   // Check admin status
   React.useEffect(() => {
@@ -29,7 +33,70 @@ export default function SettingsScreen({ onLogout, accountInfo }) {
     checkAdmin();
   }, [accountInfo?.id]);
 
+  // Check map download status
+  React.useEffect(() => {
+    const checkMapStatus = async () => {
+      const info = await MapDownloadService.getDownloadInfo();
+      setMapsDownloaded(info.isDownloaded);
+      setMapDownloadInfo(info);
+    };
+    checkMapStatus();
+  }, []);
+
   const appVersion = getAppVersion();
+
+  const handleDownloadMaps = async () => {
+    Alert.alert(
+      'Download Offline Maps',
+      `Download maps for Davao City (~${MapDownloadService.getEstimatedSize()} MB)? This will allow you to use map activities offline.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: async () => {
+            setIsDownloadingMaps(true);
+            setDownloadProgress(0);
+
+            const result = await MapDownloadService.downloadDavaoMaps((progress) => {
+              setDownloadProgress(progress.percentage);
+            });
+
+            setIsDownloadingMaps(false);
+
+            if (result.success) {
+              setMapsDownloaded(true);
+              Alert.alert('Success', 'Offline maps downloaded successfully!');
+            } else {
+              Alert.alert('Error', 'Failed to download maps. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteMaps = async () => {
+    Alert.alert(
+      'Delete Offline Maps',
+      'Are you sure you want to delete downloaded maps? You will need internet to use map activities.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await MapDownloadService.clearMaps();
+            if (result.success) {
+              setMapsDownloaded(false);
+              Alert.alert('Success', 'Offline maps deleted.');
+            } else {
+              Alert.alert('Error', 'Failed to delete maps.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleDeleteAccount = async () => {
     Alert.alert(
@@ -77,6 +144,61 @@ export default function SettingsScreen({ onLogout, accountInfo }) {
             <Text style={styles.infoValue} numberOfLines={1}>{accountInfo?.id ? accountInfo.id.substring(0, 12) + '...' : 'Unknown'}</Text>
           </View>
         </View>
+      </View>
+
+      <View style={styles.purpleCard}>
+        <Text style={styles.sectionTitle}>Offline Maps</Text>
+        
+        {isDownloadingMaps && (
+          <View style={styles.downloadProgress}>
+            <Text style={styles.progressText}>Downloading... {downloadProgress}%</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${downloadProgress}%` }]} />
+            </View>
+          </View>
+        )}
+
+        {mapsDownloaded ? (
+          <>
+            <View style={styles.mapStatus}>
+              <MaterialCommunityIcons name="check-circle" size={24} color="#4ade80" />
+              <Text style={styles.mapStatusText}>
+                Maps downloaded {mapDownloadInfo?.downloadDate && 
+                  `(${new Date(mapDownloadInfo.downloadDate).toLocaleDateString()})`}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={handleDeleteMaps} 
+              style={[styles.button, { backgroundColor: '#ff6b6b' }]}
+            >
+              <MaterialCommunityIcons name="delete" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>Delete Offline Maps</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <View style={styles.mapStatus}>
+              <MaterialCommunityIcons name="cloud-download" size={24} color="#c77dff" />
+              <Text style={styles.mapStatusText}>
+                No offline maps downloaded (~{MapDownloadService.getEstimatedSize()} MB)
+              </Text>
+            </View>
+            <TouchableOpacity 
+              onPress={handleDownloadMaps} 
+              style={[styles.button, { backgroundColor: '#c77dff', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
+              disabled={isDownloadingMaps}
+            >
+              {isDownloadingMaps ? (
+                <ActivityIndicator color="#0f0d12" />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="download" size={20} color="#0f0d12" style={{ marginRight: 8 }} />
+                  <Text style={[styles.buttonText, { color: '#0f0d12' }]}>Download Maps for Davao City</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <View style={styles.purpleCard}>
@@ -188,4 +310,39 @@ const styles = StyleSheet.create({
       marginTop: 18,
       letterSpacing: 1,
     },
+  mapStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: 'rgba(199, 125, 255, 0.1)',
+    borderRadius: 8,
+  },
+  mapStatusText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    marginLeft: 12,
+    flex: 1,
+  },
+  downloadProgress: {
+    marginBottom: 16,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#c77dff',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontWeight: '700',
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#c77dff',
+    borderRadius: 4,
+  },
 });

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useContext } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator, Platform, ScrollView, Animated, Modal } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
+import * as FileSystem from 'expo-file-system/legacy';
 import { theme } from '../theme/ThemeProvider';
 import { AppContext } from '../context/AppState';
 import * as FirebaseService from '../services/OfflineFirebaseService';
@@ -22,7 +23,24 @@ function haversineDistance(a, b) {
   return R * c;
 }
 
-const leafletHTML = `<!DOCTYPE html>
+// Generate HTML with local tile support
+const generateLeafletHTML = async () => {
+  // Check if offline maps are downloaded
+  const mapTilesDir = FileSystem.documentDirectory + 'map_tiles/';
+  let hasOfflineMaps = false;
+  try {
+    const mapsDirInfo = await FileSystem.getInfoAsync(mapTilesDir);
+    hasOfflineMaps = mapsDirInfo.exists;
+  } catch (error) {
+    console.log('Error checking offline maps:', error);
+  }
+
+  // Convert FileSystem path to file:// URL for WebView
+  const tileBasePath = Platform.OS === 'android' 
+    ? mapTilesDir  // Android WebView can handle file:/// paths directly
+    : mapTilesDir.replace('file://', ''); // iOS needs adjustment
+
+  return `<!DOCTYPE html>
 <html>
   <head>
     <meta name="viewport" content="initial-scale=1, maximum-scale=1">
@@ -38,13 +56,13 @@ const leafletHTML = `<!DOCTYPE html>
         position: absolute;
         top: 10px;
         right: 10px;
-        background: rgba(255, 107, 107, 0.9);
+        background: ${hasOfflineMaps ? 'rgba(76, 175, 80, 0.9)' : 'rgba(255, 107, 107, 0.9)'};
         color: white;
         padding: 8px 12px;
         border-radius: 8px;
         font-weight: bold;
         z-index: 1000;
-        display: none;
+        font-size: 12px;
       }
       @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(199, 125, 255, 0.9); }
@@ -68,29 +86,138 @@ const leafletHTML = `<!DOCTYPE html>
     </style>
   </head>
   <body>
-    <div id="offline-indicator" class="offline-indicator">📵 Offline Mode</div>
+    <div id="offline-indicator" class="offline-indicator">🌐 Checking connection...</div>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+      // Helper to send logs to React Native
+      function log(msg) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', message: msg }));
+        }
+      }
+      
       const map = L.map('map', { zoomControl: false });
       
-      // Create tile layer with offline fallback
-      const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        className: 'rpg-tiles',
-        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-      });
+      // Set default view (will be overridden when location comes in)
+      map.setView([7.0644, 125.6078], 13); // Davao City center
       
-      // Monitor tile loading errors to detect offline mode
-      let offlineMode = false;
-      tileLayer.on('tileerror', function() {
-        if (!offlineMode) {
-          offlineMode = true;
-          document.getElementById('offline-indicator').style.display = 'block';
+      const hasOfflineMaps = ${hasOfflineMaps};
+      const tileBasePath = '${tileBasePath}';
+      let isOnline = true;
+      let useOnlineTiles = true;
+      
+      // Check internet connectivity
+      function checkConnectivity() {
+        fetch('https://www.google.com/favicon.ico', { 
+          mode: 'no-cors',
+          cache: 'no-cache'
+        })
+        .then(() => {
+          isOnline = true;
+          useOnlineTiles = true;
+          updateIndicator();
+        })
+        .catch(() => {
+          isOnline = false;
+          useOnlineTiles = false;
+          updateIndicator();
+        });
+      }
+      
+      // Update the indicator text based on connection status
+      function updateIndicator() {
+        const indicator = document.getElementById('offline-indicator');
+        if (isOnline) {
+          indicator.textContent = '🌐 Online Mode';
+          indicator.style.background = 'rgba(76, 175, 80, 0.9)';
+        } else if (hasOfflineMaps) {
+          indicator.textContent = '📍 Offline Maps';
+          indicator.style.background = 'rgba(255, 152, 0, 0.9)';
+        } else {
+          indicator.textContent = '❌ No Connection';
+          indicator.style.background = 'rgba(244, 67, 54, 0.9)';
+        }
+      }
+      
+      // Check connectivity on load and periodically
+      checkConnectivity();
+      setInterval(checkConnectivity, 10000); // Check every 10 seconds
+      
+      // Custom tile layer that switches between online and offline based on connectivity
+      const CustomTileLayer = L.TileLayer.extend({
+        createTile: function(coords, done) {
+          const tile = document.createElement('img');
+          tile.crossOrigin = 'anonymous';
+          const z = coords.z;
+          const x = coords.x;
+          const y = coords.y;
+          const subdomains = 'abc';
+          const s = subdomains[Math.abs(x + y) % subdomains.length];
+          const osmUrl = 'https://' + s + '.tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png';
+          const localUrl = tileBasePath + z + '/' + x + '/' + y + '.png';
+          
+          // If online, prefer OSM tiles
+          if (useOnlineTiles) {
+            tile.onload = function() { 
+              log('OSM tile loaded: ' + z + '/' + x + '/' + y);
+              done(null, tile); 
+            };
+            tile.onerror = function(e) {
+              log('OSM tile failed: ' + z + '/' + x + '/' + y + ', trying local');
+              // If online tile fails and we have offline maps, try local
+              if (hasOfflineMaps) {
+                tile.onerror = function() { 
+                  log('Local tile also failed: ' + z + '/' + x + '/' + y);
+                  done(new Error('Tile load error'), tile); 
+                };
+                tile.src = localUrl;
+              } else {
+                done(new Error('Tile load error'), tile);
+              }
+            };
+            tile.src = osmUrl;
+          } 
+          // If offline, use cached tiles if available
+          else if (hasOfflineMaps) {
+            tile.onload = function() { 
+              log('Local tile loaded: ' + z + '/' + x + '/' + y);
+              done(null, tile); 
+            };
+            tile.onerror = function() {
+              log('Local tile failed: ' + z + '/' + x + '/' + y + ', trying OSM');
+              // If local tile doesn't exist, try OSM (might work if connection comes back)
+              tile.onerror = function() { 
+                log('OSM tile also failed: ' + z + '/' + x + '/' + y);
+                done(new Error('Tile load error'), tile); 
+              };
+              tile.src = osmUrl;
+            };
+            tile.src = localUrl;
+          }
+          // No offline maps and no connection - try OSM anyway
+          else {
+            tile.onload = function() { 
+              log('OSM tile loaded (no offline): ' + z + '/' + x + '/' + y);
+              done(null, tile); 
+            };
+            tile.onerror = function() { 
+              log('OSM tile failed (no offline): ' + z + '/' + x + '/' + y);
+              done(new Error('Tile load error'), tile); 
+            };
+            tile.src = osmUrl;
+          }
+          
+          return tile;
         }
       });
       
-      tileLayer.addTo(map);
+      const tileLayer = new CustomTileLayer('', {
+        maxZoom: 19,
+        className: 'rpg-tiles',
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+      }).addTo(map);
+      
       let poly = null;
       let startMarker = null;
       let currentMarker = null;
@@ -131,6 +258,7 @@ const leafletHTML = `<!DOCTYPE html>
       function fit(lat, lng) {
         map.setView([lat, lng], 16);
       }
+      
       function handleMessageData(data) {
         try {
           const msg = JSON.parse(data);
@@ -140,7 +268,6 @@ const leafletHTML = `<!DOCTYPE html>
             addPoint(latitude, longitude);
             fit(latitude, longitude);
             if (!currentMarker) {
-              // Create a larger, more visible current position marker with glow
               currentMarker = L.circleMarker([latitude, longitude], { 
                 radius: 10, 
                 color: '#ffffff', 
@@ -158,7 +285,6 @@ const leafletHTML = `<!DOCTYPE html>
           } else if (msg.type === 'showCurrent') {
             const { latitude, longitude } = msg.coords;
             if (!currentMarker) {
-              // Create current position marker before tracking starts
               currentMarker = L.circleMarker([latitude, longitude], { 
                 radius: 10, 
                 color: '#ffffff', 
@@ -175,17 +301,13 @@ const leafletHTML = `<!DOCTYPE html>
       }
 
       document.addEventListener('message', (e) => {
-        try {
-          handleMessageData(e.data);
-        } catch (err) {}
+        try { handleMessageData(e.data); } catch (err) {}
       });
 
-      // For iOS/Android modern WebView bridge
       window.addEventListener('message', (e) => {
         try { handleMessageData(e.data); } catch (err) {}
       });
 
-      // Notify React Native that the WebView content is ready
       setTimeout(() => {
         if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
@@ -194,6 +316,7 @@ const leafletHTML = `<!DOCTYPE html>
     </script>
   </body>
   </html>`;
+};
 
 export default function LeafletMapActivityScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
@@ -201,6 +324,7 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
   const webRef = useRef(null);
   const { getCurrentUserId, loadUserData } = useContext(AppContext);
   const [webReady, setWebReady] = useState(false);
+  const [leafletHTML, setLeafletHTML] = useState(null);
 
   const [location, setLocation] = useState(null);
   const [watcher, setWatcher] = useState(null);
@@ -229,6 +353,14 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
   // Filtering & smoothing helpers for accurate tracking
   const lastAcceptedRef = useRef(null); // { coord: { latitude, longitude }, t: number }
   const speedEmaRef = useRef(0); // exponential moving average of speed (m/s)
+
+  // Load Leaflet HTML on mount
+  useEffect(() => {
+    (async () => {
+      const html = await generateLeafletHTML();
+      setLeafletHTML(html);
+    })();
+  }, []);
 
   useEffect(() => {
     // Request location permission on mount
@@ -520,7 +652,7 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
             <Text style={styles.statValue}>{formatPace(elapsedMs, distance)}</Text>
           </View>
         </View>
-        {location ? (
+        {location && leafletHTML ? (
           <WebView
             ref={webRef}
             source={{ html: leafletHTML }}
@@ -529,13 +661,20 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
             javaScriptEnabled
             domStorageEnabled
             geolocationEnabled={false}
+            allowFileAccess={true}
+            allowFileAccessFromFileURLs={true}
+            allowUniversalAccessFromFileURLs={true}
+            mixedContentMode="always"
             onLoadEnd={() => setWebReady(true)}
             onHttpError={(e) => console.warn('WebView http error', e.nativeEvent?.statusCode)}
+            onError={(e) => console.error('WebView error:', e.nativeEvent)}
             onMessage={(e) => {
               try {
                 const msg = JSON.parse(e.nativeEvent.data);
                 if (msg.type === 'ready') {
                   setWebReady(true);
+                } else if (msg.type === 'log') {
+                  console.log('WebView:', msg.message);
                 }
               } catch (_) {}
             }}
@@ -543,7 +682,9 @@ export default function LeafletMapActivityScreen({ navigation, route }) {
         ) : (
           <View style={[styles.map, { alignItems: 'center', justifyContent: 'center' }]}> 
             <ActivityIndicator size="large" color={theme.colors.accent} />
-            <Text style={{ color: theme.colors.muted, marginTop: 8 }}>Getting your location…</Text>
+            <Text style={{ color: theme.colors.muted, marginTop: 8 }}>
+              {!location ? 'Getting your location…' : 'Loading map…'}
+            </Text>
           </View>
         )}
       </View>
